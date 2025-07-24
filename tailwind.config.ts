@@ -61,7 +61,24 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				'cake-pink': 'hsl(var(--cake-pink))',
+				'cake-cream': 'hsl(var(--cake-cream))',
+				'cake-brown': 'hsl(var(--cake-brown))',
+				'warm-peach': 'hsl(var(--warm-peach))'
+			},
+			backgroundImage: {
+				'gradient-primary': 'var(--gradient-primary)',
+				'gradient-secondary': 'var(--gradient-secondary)',
+				'gradient-background': 'var(--gradient-background)'
+			},
+			boxShadow: {
+				'cake': 'var(--shadow-cake)',
+				'soft': 'var(--shadow-soft)'
+			},
+			transitionTimingFunction: {
+				'smooth': 'var(--transition-smooth)',
+				'bounce': 'var(--transition-bounce)'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
