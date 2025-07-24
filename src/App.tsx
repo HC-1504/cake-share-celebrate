@@ -11,33 +11,74 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import UploadCake from "@/pages/upload-cake";
+import Voting from "@/pages/voting";
+import Checkin from "@/pages/checkin";
+import { getAuthToken, setAuthToken, removeAuthToken } from "@/lib/utils";
+import { createContext, useContext, useState, useEffect } from "react";
 
 const queryClient = new QueryClient();
+
+// Auth Context
+const AuthContext = createContext({
+  isAuthenticated: false,
+  login: (token: string) => {},
+  logout: () => {},
+});
+
+export function useAuth() {
+  return useContext(AuthContext);
+}
+
+const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(!!getAuthToken());
+
+  useEffect(() => {
+    setIsAuthenticated(!!getAuthToken());
+  }, []);
+
+  const login = (token: string) => {
+    setAuthToken(token);
+    setIsAuthenticated(true);
+  };
+  const logout = () => {
+    removeAuthToken();
+    setIsAuthenticated(false);
+  };
+
+  return (
+    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <div className="min-h-screen">
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/gallery" element={<Gallery />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            {/* Placeholder routes that redirect to dashboard for now */}
-            <Route path="/upload-cake" element={<Dashboard />} />
-            <Route path="/voting" element={<Dashboard />} />
-            <Route path="/checkin" element={<Dashboard />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </div>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <div className="min-h-screen">
+            <Navbar />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/gallery" element={<Gallery />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              {/* Placeholder routes that redirect to dashboard for now */}
+              <Route path="/upload-cake" element={<UploadCake />} />
+              <Route path="/voting" element={<Voting />} />
+              <Route path="/checkin" element={<Checkin />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </div>
+        </BrowserRouter>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

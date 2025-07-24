@@ -44,9 +44,6 @@ const Navbar = () => {
               </Link>
             ))}
             <div className="flex items-center space-x-2">
-              <Button variant="soft" size="sm" asChild>
-                <Link to="/login">Login</Link>
-              </Button>
               <Button variant="cake" size="sm" asChild>
                 <Link to="/register">Join Picnic</Link>
               </Button>
@@ -86,9 +83,6 @@ const Navbar = () => {
               </Link>
             ))}
             <div className="px-3 py-2 space-y-2">
-              <Button variant="soft" size="sm" className="w-full" asChild>
-                <Link to="/login" onClick={() => setIsOpen(false)}>Login</Link>
-              </Button>
               <Button variant="cake" size="sm" className="w-full" asChild>
                 <Link to="/register" onClick={() => setIsOpen(false)}>Join Picnic</Link>
               </Button>

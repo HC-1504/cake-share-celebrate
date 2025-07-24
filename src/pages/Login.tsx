@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Cake, Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/App";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -12,11 +13,26 @@ const Login = () => {
     email: "",
     password: ""
   });
+  const [error, setError] = useState("");
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log("Login attempt:", formData);
+    setError("");
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      if (!res.ok) throw new Error("Invalid credentials");
+      const data = await res.json();
+      login(data.token);
+      navigate("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Login failed");
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,6 +66,7 @@ const Login = () => {
             <CardTitle className="text-center text-xl">Sign In</CardTitle>
           </CardHeader>
           <CardContent>
+            {error && <div className="text-red-600 text-center mb-2">{error}</div>}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <Label htmlFor="email">Email address</Label>
@@ -107,22 +124,7 @@ const Login = () => {
             </form>
 
             <div className="mt-6">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-card text-muted-foreground">
-                    Don't have an account?
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <Button variant="soft" className="w-full" asChild>
-                  <Link to="/register">Create an account</Link>
-                </Button>
-              </div>
+              {/* Registration link removed: registration must be completed before login */}
             </div>
           </CardContent>
         </Card>

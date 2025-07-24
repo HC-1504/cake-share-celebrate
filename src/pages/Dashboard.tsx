@@ -11,8 +11,12 @@ import {
   Clock, 
   AlertCircle 
 } from "lucide-react";
+import { useAuth } from "@/App";
+import { Navigate } from "react-router-dom";
 
 const Dashboard = () => {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   // Mock user progress - in real app this would come from backend
   const userProgress = {
     registration: { completed: false, status: "pending" },
