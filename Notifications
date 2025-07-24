@@ -1,0 +1,59 @@
+import { useEffect, useState } from "react";
+
+const EventLog = ({ contract }) => {
+  const [events, setEvents] = useState([]);
+
+  const addToTable = (event) => {
+    setEvents((prev) => [...prev, event]);
+  };
+
+  useEffect(() => {
+    const handleEnter = (user, message, timestamp) => {
+      const time = new Date(timestamp * 1000).toLocaleString();
+      addToTable({ user, message, time, type: "Enter" });
+      alert(`${user} entered at ${time}`);
+    };
+
+    const handleExit = (user, message, timestamp) => {
+      const time = new Date(timestamp * 1000).toLocaleString();
+      addToTable({ user, message, time, type: "Exit" });
+      alert(`${user} left at ${time}`);
+    };
+
+    contract.on("EnterEvent", handleEnter);
+    contract.on("ExitEvent", handleExit);
+
+    return () => {
+      contract.off("EnterEvent", handleEnter);
+      contract.off("ExitEvent", handleExit);
+    };
+  }, [contract]);
+
+  return (
+    <div>
+      <h2>Picnic Event Log</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Message</th>
+            <th>Time</th>
+            <th>Type</th>
+          </tr>
+        </thead>
+        <tbody>
+          {events.map((e, idx) => (
+            <tr key={idx}>
+              <td>{e.user}</td>
+              <td>{e.message}</td>
+              <td>{e.time}</td>
+              <td>{e.type}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+export default EventLog;
