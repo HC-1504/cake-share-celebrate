@@ -1,2 +1,5 @@
-const { DataTypes } = require('sequelize');
-module.exports = (sequelize) => sequelize.define('Vote', {});
+import { DataTypes } from 'sequelize';
+
+const Vote = (sequelize) => sequelize.define('Vote', {});
+
+export default Vote;
