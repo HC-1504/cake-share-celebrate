@@ -2,15 +2,17 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Cake } from "lucide-react";
+import { useAuth } from "@/App"; // Assuming useAuth hook is defined in this file
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { isAuthenticated, logout } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
 
   const publicNavItems = [
-    { path: "/", label: "Home" },
+    { path: isAuthenticated ? "/dashboard" : "/", label: "Home" },
     { path: "/about", label: "About" },
     { path: "/gallery", label: "Gallery" },
   ];
@@ -20,7 +22,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link to="/" className="flex items-center space-x-2">
+            <Link to={publicNavItems[0].path} className="flex items-center space-x-2">
               <Cake className="h-8 w-8 text-primary" />
               <span className="font-bold text-xl bg-gradient-primary bg-clip-text text-transparent">
                 Cake Picnic
@@ -34,19 +36,25 @@ const Navbar = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-smooth ${
-                  isActive(item.path)
-                    ? "text-primary font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-smooth ${isActive(item.path)
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+                  }`}
               >
                 {item.label}
               </Link>
             ))}
             <div className="flex items-center space-x-2">
-              <Button variant="cake" size="sm" asChild>
-                <Link to="/register">Join Picnic</Link>
-              </Button>
+              {/* [MARKER] Header Join Picnic Button */}
+              {isAuthenticated ? (
+                <Button variant="cake" size="sm" onClick={logout}>
+                  Logout
+                </Button>
+              ) : (
+                <Button variant="cake" size="sm" asChild>
+                  <Link to="/register">Join Picnic</Link>
+                </Button>
+              )}
             </div>
           </div>
 
@@ -72,20 +80,26 @@ const Navbar = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`block px-3 py-2 rounded-md text-base font-medium transition-smooth ${
-                  isActive(item.path)
-                    ? "text-primary font-semibold bg-accent"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                }`}
+                className={`block px-3 py-2 rounded-md text-base font-medium transition-smooth ${isActive(item.path)
+                  ? "text-primary font-semibold bg-accent"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  }`}
                 onClick={() => setIsOpen(false)}
               >
                 {item.label}
               </Link>
             ))}
+            {/* [MARKER] Mobile Header Logout Button */}
             <div className="px-3 py-2 space-y-2">
-              <Button variant="cake" size="sm" className="w-full" asChild>
-                <Link to="/register" onClick={() => setIsOpen(false)}>Join Picnic</Link>
-              </Button>
+              {isAuthenticated ? (
+                <Button variant="cake" size="sm" className="w-full" onClick={logout}>
+                  Logout
+                </Button>
+              ) : (
+                <Button variant="cake" size="sm" className="w-full" asChild>
+                  <Link to="/register" onClick={() => setIsOpen(false)}>Join Picnic</Link>
+                </Button>
+              )}
             </div>
           </div>
         </div>

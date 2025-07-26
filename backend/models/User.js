@@ -1,7 +1,31 @@
-const { DataTypes } = require('sequelize');
-module.exports = (sequelize) => sequelize.define('User', {
-  email: { type: DataTypes.STRING, unique: true, allowNull: false },
-  password: { type: DataTypes.STRING, allowNull: false },
-  hasPaid: { type: DataTypes.BOOLEAN, defaultValue: false },
-  checkedIn: { type: DataTypes.BOOLEAN, defaultValue: false },
-});
+// backend/models/user.js
+
+// Use 'import' instead of 'require'
+import { Model, DataTypes } from 'sequelize';
+
+// Use 'export default' instead of 'module.exports'
+export default (sequelize) => {
+  class User extends Model {
+    static associate(models) {
+      this.hasMany(models.Cake, { foreignKey: 'UserId', as: 'cakes' });
+      this.hasOne(models.Vote, { foreignKey: 'UserId', as: 'vote' });
+    }
+  }
+
+  User.init({
+    firstName: DataTypes.STRING,
+    lastName: DataTypes.STRING,
+    email: DataTypes.STRING,
+    password: DataTypes.STRING,
+    ethAddress: DataTypes.STRING,
+    category: DataTypes.STRING,
+    txHash: DataTypes.STRING,
+    hasPaid: DataTypes.BOOLEAN,
+    checkedIn: DataTypes.BOOLEAN
+  }, {
+    sequelize,
+    modelName: 'User',
+  });
+
+  return User;
+};

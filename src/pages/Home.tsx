@@ -42,10 +42,11 @@ const Home = () => {
                 </span>
               </h1>
               <p className="mt-6 text-lg text-muted-foreground max-w-xl">
-                Join our delightful community cake picnic! Bring your homemade cake, 
+                Join our delightful community cake picnic! Bring your homemade cake,
                 taste amazing creations, vote for favorites, and make sweet memories with fellow baking enthusiasts.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-4">
+                {/* [MARKER] Join Picnic Button - Main CTA */}
                 <Button variant="cake" size="lg" asChild>
                   <Link to="/register">Join the Picnic</Link>
                 </Button>
@@ -112,6 +113,7 @@ const Home = () => {
             Join our cake picnic community and be part of something delicious!
           </p>
           <div className="mt-8">
+            {/* [MARKER] Get Started Today Button - Features CTA */}
             <Button variant="cake" size="lg" className="text-lg px-8" asChild>
               <Link to="/register">Get Started Today</Link>
             </Button>

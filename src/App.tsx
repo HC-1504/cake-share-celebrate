@@ -16,14 +16,16 @@ import Voting from "@/pages/voting";
 import Checkin from "@/pages/checkin";
 import { getAuthToken, setAuthToken, removeAuthToken } from "@/lib/utils";
 import { createContext, useContext, useState, useEffect } from "react";
+import { Web3ModalProvider } from '@/config/web3'
 
 const queryClient = new QueryClient();
 
 // Auth Context
 const AuthContext = createContext({
   isAuthenticated: false,
-  login: (token: string) => {},
-  logout: () => {},
+  token: null,
+  login: (token: string) => { },
+  logout: () => { },
 });
 
 export function useAuth() {
@@ -32,55 +34,62 @@ export function useAuth() {
 
 const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(!!getAuthToken());
+  const [token, setToken] = useState<string | null>(getAuthToken());
 
   useEffect(() => {
-    setIsAuthenticated(!!getAuthToken());
+    const authToken = getAuthToken();
+    setIsAuthenticated(!!authToken);
+    setToken(authToken);
   }, []);
 
-  const login = (token: string) => {
-    setAuthToken(token);
+  const login = (newToken: string) => {
+    setAuthToken(newToken);
     setIsAuthenticated(true);
+    setToken(newToken);
   };
   const logout = () => {
     removeAuthToken();
     setIsAuthenticated(false);
+    setToken(null);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, token, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AuthProvider>
-        <BrowserRouter>
-          <div className="min-h-screen">
-            <Navbar />
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/gallery" element={<Gallery />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              {/* Placeholder routes that redirect to dashboard for now */}
-              <Route path="/upload-cake" element={<UploadCake />} />
-              <Route path="/voting" element={<Voting />} />
-              <Route path="/checkin" element={<Checkin />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </div>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <Web3ModalProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <BrowserRouter>
+            <div className="min-h-screen">
+              <Navbar />
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/gallery" element={<Gallery />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                {/* Placeholder routes that redirect to dashboard for now */}
+                <Route path="/upload-cake" element={<UploadCake />} />
+                <Route path="/voting" element={<Voting />} />
+                <Route path="/checkin" element={<Checkin />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </div>
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </Web3ModalProvider>
 );
 
 export default App;
