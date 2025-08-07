@@ -259,5 +259,537 @@ export const eventRegistrationABI = [
 ] as const
 
 export const eventRegistrationAddress = {
-    [holesky.id]: '0x74113B2c6F35E0e9A81bC824BFEF9BCb429bB08c' as `0x${string}`
+    [holesky.id]: '0x1350A69Ea2beFb5d733634Ee4F0dDfd2651da1CA' as `0x${string}`
+}
+
+export const cakeUploadABI = [
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "cakeId",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "uploader",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint8",
+				"name": "tableNumber",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint8",
+				"name": "seatNumber",
+				"type": "uint8"
+			}
+		],
+		"name": "CakeRemoved",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "cakeId",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "uploader",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "title",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint8",
+				"name": "tableNumber",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint8",
+				"name": "seatNumber",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "fileType",
+				"type": "string"
+			}
+		],
+		"name": "CakeUploaded",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "cakeId",
+				"type": "uint256"
+			}
+		],
+		"name": "forceRemoveCake",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "cakeId",
+				"type": "uint256"
+			}
+		],
+		"name": "removeCake",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint8",
+				"name": "tableNumber",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint8",
+				"name": "seatNumber",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "uploader",
+				"type": "address"
+			}
+		],
+		"name": "SeatOccupied",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newOwner",
+				"type": "address"
+			}
+		],
+		"name": "transferOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "title",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "description",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "fileUrl",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "fileType",
+				"type": "string"
+			},
+			{
+				"internalType": "uint8",
+				"name": "tableNumber",
+				"type": "uint8"
+			},
+			{
+				"internalType": "uint8",
+				"name": "seatNumber",
+				"type": "uint8"
+			},
+			{
+				"internalType": "string",
+				"name": "story",
+				"type": "string"
+			}
+		],
+		"name": "uploadCake",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "cakes",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "uploader",
+				"type": "address"
+			},
+			{
+				"internalType": "string",
+				"name": "title",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "description",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "fileUrl",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "fileType",
+				"type": "string"
+			},
+			{
+				"internalType": "uint8",
+				"name": "tableNumber",
+				"type": "uint8"
+			},
+			{
+				"internalType": "uint8",
+				"name": "seatNumber",
+				"type": "uint8"
+			},
+			{
+				"internalType": "string",
+				"name": "story",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "uploadedAt",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bool",
+				"name": "isActive",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getActiveCakeCount",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getAllActiveCakes",
+		"outputs": [
+			{
+				"internalType": "uint256[]",
+				"name": "",
+				"type": "uint256[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "cakeId",
+				"type": "uint256"
+			}
+		],
+		"name": "getCake",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "id",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "uploader",
+						"type": "address"
+					},
+					{
+						"internalType": "string",
+						"name": "title",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "description",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "fileUrl",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "fileType",
+						"type": "string"
+					},
+					{
+						"internalType": "uint8",
+						"name": "tableNumber",
+						"type": "uint8"
+					},
+					{
+						"internalType": "uint8",
+						"name": "seatNumber",
+						"type": "uint8"
+					},
+					{
+						"internalType": "string",
+						"name": "story",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "uploadedAt",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bool",
+						"name": "isActive",
+						"type": "bool"
+					}
+				],
+				"internalType": "struct CakeUpload.Cake",
+				"name": "",
+				"type": "tuple"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "tableNumber",
+				"type": "uint8"
+			},
+			{
+				"internalType": "uint8",
+				"name": "seatNumber",
+				"type": "uint8"
+			}
+		],
+		"name": "getSeatInfo",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "bool",
+						"name": "isOccupied",
+						"type": "bool"
+					},
+					{
+						"internalType": "uint256",
+						"name": "cakeId",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "uploader",
+						"type": "address"
+					}
+				],
+				"internalType": "struct CakeUpload.TableSeat",
+				"name": "",
+				"type": "tuple"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getTotalCakes",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			}
+		],
+		"name": "getUserCakes",
+		"outputs": [
+			{
+				"internalType": "uint256[]",
+				"name": "",
+				"type": "uint256[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "tableNumber",
+				"type": "uint8"
+			},
+			{
+				"internalType": "uint8",
+				"name": "seatNumber",
+				"type": "uint8"
+			}
+		],
+		"name": "isSeatOccupied",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			},
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"name": "tableSeats",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "isOccupied",
+				"type": "bool"
+			},
+			{
+				"internalType": "uint256",
+				"name": "cakeId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "uploader",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "userCakes",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+] as const
+
+export const cakeUploadAddress = {
+    [holesky.id]: '0x3011f187A08Bdff6f94C4a2821fD82E8EDE8337e' as `0x${string}`
 }

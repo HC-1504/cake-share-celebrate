@@ -3,6 +3,10 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Link } from "react-router-dom";
 import {
   Upload,
@@ -13,10 +17,20 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,      // <-- ADDED: For loading spinner
-  User as UserIcon // <-- ADDED: For the user details card
+  User as UserIcon, // <-- ADDED: For the user details card
+  Trash2,       // <-- ADDED: For delete button
+  Edit,         // <-- ADDED: For edit button
+  Cake          // <-- ADDED: For cake icon
 } from "lucide-react";
 import { useAuth } from "@/App";
 import { Navigate } from "react-router-dom";
+import { useAccount, useWriteContract, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
+import { cakeUploadABI, cakeUploadAddress } from '@/config/contracts';
+import { holesky } from 'wagmi/chains';
+import { useToast } from '@/hooks/use-toast';
+import ModelViewer from '@/components/ModelViewer';
+import SimpleModelViewer from '@/components/SimpleModelViewer';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 
 // ===========================================================
@@ -34,14 +48,364 @@ interface User {
   checkedIn: boolean;
 }
 
+// Define a type for cake data
+interface Cake {
+  id: number;
+  title: string;
+  description: string;
+  imageUrl: string;
+  fileType: string;
+  tableNumber: number;
+  seatNumber: number;
+  story: string;
+  UserId: number;
+  createdAt: string;
+  User?: {
+    firstName: string;
+    lastName: string;
+  };
+}
+
 const Dashboard = () => {
   // Get the token from the auth context to make authenticated API calls
   const { isAuthenticated, token } = useAuth();
+  const { address } = useAccount();
 
   // State to hold the fetched user data, loading status, and any errors
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userCake, setUserCake] = useState<Cake | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    story: '',
+    tableNumber: 1,
+    seatNumber: 1,
+    fileType: 'image'
+  });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [occupiedSeats, setOccupiedSeats] = useState<Array<{tableNumber: number, seatNumber: number}>>([]);
+  const [loadingSeats, setLoadingSeats] = useState(false);
+
+  // Wagmi hooks for smart contract interaction
+  const { writeContract, isPending: isContractPending, data: deleteHash } = useWriteContract();
+  const { toast } = useToast();
+  
+  // Wait for delete transaction confirmation
+  const { isSuccess: isDeleteConfirmed } = useWaitForTransactionReceipt({
+    hash: deleteHash,
+    chainId: holesky.id,
+  });
+
+  // Read user's cake from blockchain
+  const { data: userCakeIds } = useReadContract({
+    address: cakeUploadAddress[holesky.id],
+    abi: cakeUploadABI,
+    functionName: 'getUserCakes',
+    args: [address as `0x${string}`],
+    query: {
+      enabled: !!address,
+    },
+  });
+
+  // Read cake details from blockchain
+  const { data: blockchainCake } = useReadContract({
+    address: cakeUploadAddress[holesky.id],
+    abi: cakeUploadABI,
+    functionName: 'getCake',
+    args: [userCakeIds?.[0] || 0n],
+    query: {
+      enabled: !!userCakeIds && userCakeIds.length > 0,
+    },
+  });
+
+  // --- ALL YOUR ORIGINAL MOCK DATA AND HELPER FUNCTIONS ARE UNTOUCHED ---
+  const [userProgress, setUserProgress] = useState({
+    registration: { completed: true, status: "completed" },
+    cakeUpload: { completed: false, status: "pending" },
+    voting: { completed: false, status: "locked" },
+    checkin: { completed: false, status: "locked" }
+  });
+
+  // Function to fetch user's cake from database
+  const fetchUserCake = async () => {
+    if (!token) return;
+    
+    try {
+      const res = await fetch("http://localhost:5001/api/cakes", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+      
+      if (res.ok) {
+        const cakes = await res.json();
+        const userCake = cakes.find((cake: Cake) => cake.UserId === user?.id);
+        setUserCake(userCake || null);
+      }
+    } catch (error) {
+      console.error('Error fetching user cake:', error);
+    }
+  };
+
+  // Function to delete cake
+  const handleEditCake = async () => {
+    if (!userCake || !token) return;
+
+    setUpdating(true);
+    
+    try {
+      console.log('🔄 开始编辑蛋糕...');
+      console.log('用户蛋糕ID:', userCake.id);
+      console.log('编辑表单数据:', editForm);
+      
+      const formData = new FormData();
+      formData.append('title', editForm.title);
+      formData.append('description', editForm.description);
+      formData.append('story', editForm.story);
+      formData.append('tableNumber', editForm.tableNumber.toString());
+      formData.append('seatNumber', editForm.seatNumber.toString());
+      formData.append('fileType', editForm.fileType);
+      
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+        console.log('📁 包含文件上传:', selectedFile.name);
+      }
+
+      console.log('📤 发送PUT请求到:', `http://localhost:5001/api/cakes/${userCake.id}`);
+      
+      const res = await fetch(`http://localhost:5001/api/cakes/${userCake.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      console.log('📥 收到响应:', res.status, res.statusText);
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log('✅ 编辑成功:', data);
+        setUserCake(data.cake);
+        setUpdating(false);
+        setSelectedFile(null);
+        setEditing(false); // 关闭编辑对话框
+        toast({
+          title: "Cake Updated Successfully",
+          description: "Your cake details have been updated in the database",
+        });
+      } else {
+        const errorData = await res.json();
+        console.error('❌ 编辑失败:', errorData);
+        throw new Error(errorData.error || 'Failed to update cake');
+      }
+    } catch (error) {
+      console.error('❌ 编辑过程中出错:', error);
+      toast({
+        title: "Update Failed",
+        description: error instanceof Error ? error.message : "An error occurred while updating the cake",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const fetchOccupiedSeats = async () => {
+    try {
+      setLoadingSeats(true);
+      const response = await fetch('http://localhost:5001/api/occupied-seats', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setOccupiedSeats(data);
+      } else {
+        console.error('Failed to fetch occupied seats');
+      }
+    } catch (error) {
+      console.error('Error fetching occupied seats:', error);
+    } finally {
+      setLoadingSeats(false);
+    }
+  };
+
+  const openEditForm = () => {
+    if (userCake) {
+      setEditForm({
+        title: userCake.title,
+        description: userCake.description,
+        story: userCake.story,
+        tableNumber: userCake.tableNumber,
+        seatNumber: userCake.seatNumber,
+        fileType: userCake.fileType
+      });
+      fetchOccupiedSeats();
+    }
+  };
+
+  const handleSeatClick = (seatNumber: string) => {
+    setEditForm(prev => ({ ...prev, seatNumber: parseInt(seatNumber) }));
+  };
+
+  const renderSeatGrid = () => {
+    if (!editForm.tableNumber) return null;
+    if (loadingSeats) {
+      return (
+        <div className="space-y-4">
+          <Label>Select Seat Position</Label>
+          <div className="text-sm text-muted-foreground">Loading seat availability...</div>
+        </div>
+      );
+    }
+
+    const seats = [];
+    for (let i = 1; i <= 6; i++) {
+      const isSelected = editForm.seatNumber === i;
+      const isOccupied = occupiedSeats.some(
+        seat => seat.tableNumber === editForm.tableNumber && seat.seatNumber === i
+      );
+      
+      seats.push(
+        <button
+          key={i}
+          type="button"
+          onClick={() => !isOccupied && handleSeatClick(i.toString())}
+          disabled={isOccupied}
+          className={`
+            w-16 h-16 border-2 rounded-lg flex items-center justify-center text-sm font-medium transition-all
+            ${isSelected 
+              ? 'border-orange-500 bg-orange-100 text-orange-700' 
+              : isOccupied
+              ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'border-gray-300 hover:border-orange-300 hover:bg-orange-50'
+            }
+          `}
+        >
+          {isOccupied ? '❌' : i}
+        </button>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <Label>Select Seat Position</Label>
+        <div className="grid grid-cols-3 gap-3 max-w-xs">
+          {seats}
+        </div>
+        {editForm.seatNumber && (
+          <p className="text-sm text-green-600">
+            Selected: Table {editForm.tableNumber}, Seat {editForm.seatNumber}
+          </p>
+        )}
+        <div className="text-xs text-muted-foreground">
+          <p>• Available seats are numbered</p>
+          <p>• Occupied seats show ❌ and are disabled</p>
+        </div>
+      </div>
+    );
+  };
+
+  const handleDeleteCake = async () => {
+    if (!userCake || !token || !address) return;
+
+    setDeleting(true);
+    
+    try {
+      // Step 1: Call smart contract to remove cake from blockchain
+      if (userCakeIds && userCakeIds.length > 0) {
+        try {
+          console.log('Attempting to call smart contract...');
+          console.log('Available cake IDs:', userCakeIds);
+          
+          // Find the active cake ID to delete
+          let activeCakeId = null;
+          // Since we know from our analysis that ID 1 is active and ID 0 is inactive,
+          // let's try to delete the last cake ID (which should be ID 1)
+          if (userCakeIds.length > 0) {
+            activeCakeId = userCakeIds[userCakeIds.length - 1]; // Get the last cake ID
+          }
+          
+          if (activeCakeId !== null) {
+            console.log('Deleting cake ID:', activeCakeId);
+            writeContract({
+              address: cakeUploadAddress[holesky.id],
+              abi: cakeUploadABI,
+              functionName: 'removeCake',
+              args: [activeCakeId],
+              chain: holesky,
+              account: address,
+            });
+            console.log('Smart contract call initiated');
+            
+            toast({
+              title: "Blockchain Transaction Initiated",
+              description: "Removing cake from blockchain...",
+            });
+            
+            // The transaction confirmation will be handled by the useEffect hook
+            // which listens to isConfirmed and hash changes
+          } else {
+            throw new Error('No active cake found to delete');
+          }
+          
+        } catch (contractError) {
+          console.error('Smart contract error:', contractError);
+          toast({
+            title: "Blockchain Error",
+            description: "Failed to remove cake from blockchain. Please try again.",
+            variant: "destructive",
+          });
+          setDeleting(false);
+          return;
+        }
+      } else {
+        // If no blockchain cake IDs, just delete from database
+        console.log('No blockchain cake IDs found, deleting from database only');
+        
+        const res = await fetch(`http://localhost:5001/api/cakes/${userCake.id}`, {
+          method: 'DELETE',
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          toast({
+            title: "Cake Deleted Successfully",
+            description: "Your cake has been successfully deleted from database",
+          });
+          setUserCake(null);
+          setUserProgress(prev => ({
+            ...prev,
+            cakeUpload: { completed: false, status: "pending" },
+            checkin: { ...prev.checkin, status: "locked" }
+          }));
+        } else {
+          throw new Error('Failed to delete cake from database');
+        }
+        setDeleting(false);
+      }
+    } catch (error) {
+      console.error('Error deleting cake:', error);
+      toast({
+        title: "Delete Failed",
+        description: "An error occurred while deleting the cake. Please try again.",
+        variant: "destructive",
+      });
+      setDeleting(false);
+    }
+  };
 
   // useEffect hook to fetch user data when the component loads
   useEffect(() => {
@@ -62,6 +426,33 @@ const Dashboard = () => {
         }
         const data: User = await res.json();
         setUser(data); // Success! Store the user data.
+        
+        // Check if user has uploaded a cake
+        const cakeRes = await fetch("http://localhost:5001/api/cakes", {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+        
+        if (cakeRes.ok) {
+          const cakes = await cakeRes.json();
+          const userCake = cakes.find((cake: Cake) => cake.UserId === data.id);
+          setUserCake(userCake || null);
+          
+          const hasUploadedCake = !!userCake;
+          
+          setUserProgress(prev => ({
+            ...prev,
+            cakeUpload: { 
+              completed: hasUploadedCake, 
+              status: hasUploadedCake ? "completed" : "pending" 
+            },
+            checkin: {
+              ...prev.checkin,
+              status: hasUploadedCake ? "pending" : "locked"
+            }
+          }));
+        }
       } catch (err: any) {
         setError(err.message); // Store any error message
       } finally {
@@ -71,6 +462,84 @@ const Dashboard = () => {
 
     fetchUserData();
   }, [token]); // This code runs whenever the token changes
+
+  // Update user cake when blockchain data changes
+  useEffect(() => {
+    if (blockchainCake && userCake) {
+      // Update local state with blockchain data
+      setUserCake(prev => prev ? {
+        ...prev,
+        title: blockchainCake.title,
+        description: blockchainCake.description,
+        tableNumber: Number(blockchainCake.tableNumber),
+        seatNumber: Number(blockchainCake.seatNumber),
+      } : null);
+    }
+  }, [blockchainCake]); // Remove userCake from dependencies to prevent infinite loop
+
+  // Handle delete transaction confirmation
+  useEffect(() => {
+    if (isDeleteConfirmed && deleteHash && userCake?.id) {
+      console.log("Delete transaction confirmed:", deleteHash);
+      toast({
+        title: "Blockchain Transaction Confirmed",
+        description: "Cake removed from blockchain successfully",
+      });
+      
+      // Now delete from database
+      const deleteFromDatabase = async () => {
+        try {
+          const res = await fetch(`http://localhost:5001/api/cakes/${userCake.id}`, {
+            method: 'DELETE',
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+
+          if (res.ok) {
+            toast({
+              title: "Cake Deleted Successfully",
+              description: "Your cake has been successfully deleted from blockchain and database",
+            });
+            setUserCake(null);
+            setUserProgress(prev => ({
+              ...prev,
+              cakeUpload: { completed: false, status: "pending" },
+              checkin: { ...prev.checkin, status: "locked" }
+            }));
+          } else {
+            throw new Error('Failed to delete cake from database');
+          }
+        } catch (error) {
+          console.error('Error deleting cake from database:', error);
+          toast({
+            title: "Database Delete Failed",
+            description: "Cake removed from blockchain but failed to delete from database",
+            variant: "destructive",
+          });
+        } finally {
+          setDeleting(false);
+        }
+      };
+      
+      deleteFromDatabase();
+    } else if (isDeleteConfirmed && deleteHash) {
+      // If blockchain transaction is confirmed but no cake ID, just update UI
+      console.log("Delete transaction confirmed but no cake ID found");
+      toast({
+        title: "Blockchain Transaction Confirmed",
+        description: "Cake removed from blockchain successfully",
+      });
+      setUserCake(null);
+      setUserProgress(prev => ({
+        ...prev,
+        cakeUpload: { completed: false, status: "pending" },
+        checkin: { ...prev.checkin, status: "locked" }
+      }));
+      setDeleting(false);
+    }
+  }, [isDeleteConfirmed, deleteHash, userCake?.id, token, toast]);
+
 
 
   // --- Original authentication check ---
@@ -104,19 +573,34 @@ const Dashboard = () => {
   }
 
 
-  // --- ALL YOUR ORIGINAL MOCK DATA AND HELPER FUNCTIONS ARE UNTOUCHED ---
-  const userProgress = {
-    registration: { completed: true, status: "completed" },
-    cakeUpload: { completed: false, status: "pending" },
-    voting: { completed: false, status: "locked" },
-    checkin: { completed: false, status: "locked" }
-  };
-
   const steps = [
     { id: "registration", title: "Registration & Payment", description: "Registration and payment completed successfully", icon: <CheckCircle2 className="h-6 w-6 text-green-500" />, link: "#", status: "completed" },
-    { id: "cakeUpload", title: "Upload Cake Details", description: "Share photos, ingredients, and the story behind your cake creation", icon: <Upload className="h-6 w-6" />, link: "/upload-cake", status: userProgress.cakeUpload.status },
-    { id: "voting", title: "Vote for Favorites", description: "Taste and vote for the most beautiful and delicious cakes", icon: <Vote className="h-6 w-6" />, link: "/voting", status: userProgress.voting.status },
-    { id: "checkin", title: "Event Check-in", description: "Check in when you arrive and confirm your presence at the event", icon: <MapPin className="h-6 w-6" />, link: "/checkin", status: userProgress.checkin.status }
+    { 
+      id: "cakeUpload", 
+      title: "Upload Cake Details", 
+      description: userProgress.cakeUpload.completed 
+        ? "Your cake has been successfully uploaded and assigned to a seat." 
+        : "Share photos, ingredients, and the story behind your cake creation", 
+      icon: <Upload className="h-6 w-6" />, 
+      link: "/upload-cake", 
+      status: userProgress.cakeUpload.status 
+    },
+    { 
+      id: "checkin", 
+      title: "Event Check-in", 
+      description: "Check in when you arrive and confirm your presence at the event", 
+      icon: <MapPin className="h-6 w-6" />, 
+      link: "/checkin", 
+      status: userProgress.cakeUpload.completed ? userProgress.checkin.status : "locked" 
+    },
+    { 
+      id: "voting", 
+      title: "Vote for Favorites", 
+      description: "Taste and vote for the most beautiful and delicious cakes", 
+      icon: <Vote className="h-6 w-6" />, 
+      link: "/voting", 
+      status: userProgress.checkin.completed ? userProgress.voting.status : "locked" 
+    }
   ];
 
   const getStatusIcon = (status: string): React.ReactNode => {
@@ -179,6 +663,243 @@ const Dashboard = () => {
           </Card>
         </div>
 
+        {/* =========================================================== */}
+        {/* [MARKER] PART 3: ADDED USER CAKE DISPLAY WITH DELETE BUTTON */}
+        {/* =========================================================== */}
+        {userCake && (
+          <div className="mb-12">
+            <Card className="border-0 shadow-soft">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Cake className="h-6 w-6 text-primary" />
+                  Your Uploaded Cake
+                </CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      openEditForm();
+                      setEditing(true);
+                    }}
+                    disabled={editing}
+                    className="flex items-center gap-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteCake}
+                    disabled={deleting || isContractPending}
+                    className="flex items-center gap-2"
+                  >
+                    {deleting || isContractPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    {deleting || isContractPending ? "Deleting..." : "Delete Cake"}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">{userCake.title}</h3>
+                    <p className="text-muted-foreground mb-4">{userCake.description}</p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Table:</span>
+                        <span className="font-medium">{userCake.tableNumber}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Seat:</span>
+                        <span className="font-medium">{userCake.seatNumber}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">File Type:</span>
+                        <span className="font-medium">{userCake.fileType}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    {userCake.imageUrl && (
+                      <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                        {userCake.fileType === 'image' ? (
+                          <img 
+                            src={`http://localhost:5001${userCake.imageUrl}`} 
+                            alt={userCake.title}
+                            className="w-full h-full object-cover"
+                            onError={() => {
+                              console.error('Image failed to load:', userCake.imageUrl);
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full">
+                            <ErrorBoundary 
+                              modelUrl={`http://localhost:5001${userCake.imageUrl}`}
+                              className="w-full h-full"
+                            >
+                              <ModelViewer 
+                                modelUrl={`http://localhost:5001${userCake.imageUrl}`}
+                                className="w-full h-full"
+                              />
+                            </ErrorBoundary>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {userCake.story && (
+                  <div className="mt-4 p-4 bg-muted rounded-lg">
+                    <h4 className="font-semibold mb-2">Cake Story</h4>
+                    <p className="text-muted-foreground">{userCake.story}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Edit Cake Dialog */}
+        <Dialog open={editing} onOpenChange={setEditing}>
+          <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Cake Details</DialogTitle>
+              <DialogDescription>
+                Update your cake information, upload new files, and change seating position.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-6 py-4">
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Basic Information</h3>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="title" className="text-right">
+                    Title
+                  </Label>
+                  <Input
+                    id="title"
+                    value={editForm.title}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="description" className="text-right">
+                    Description
+                  </Label>
+                  <Textarea
+                    id="description"
+                    value={editForm.description}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                    className="col-span-3"
+                    rows={3}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="story" className="text-right">
+                    Story
+                  </Label>
+                  <Textarea
+                    id="story"
+                    value={editForm.story}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, story: e.target.value }))}
+                    className="col-span-3"
+                    rows={4}
+                    placeholder="Tell us the story behind your cake..."
+                  />
+                </div>
+              </div>
+
+              {/* File Upload */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Cake Image/Model</h3>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="fileType" className="text-right">
+                    File Type
+                  </Label>
+                  <select
+                    id="fileType"
+                    value={editForm.fileType}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, fileType: e.target.value }))}
+                    className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="image">Image (JPG, PNG)</option>
+                    <option value="3d">3D Model (GLB)</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="file" className="text-right">
+                    New File
+                  </Label>
+                  <div className="col-span-3">
+                    <Input
+                      id="file"
+                      type="file"
+                      accept={editForm.fileType === 'image' ? 'image/*' : '.glb'}
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                      className="col-span-3"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {editForm.fileType === 'image' 
+                        ? 'Upload a new image (JPG, PNG)' 
+                        : 'Upload a new 3D model (GLB file)'
+                      }
+                    </p>
+                    {selectedFile && (
+                      <p className="text-xs text-green-600 mt-1">
+                        Selected: {selectedFile.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Table and Seat Selection */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Position Assignment</h3>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="tableNumber" className="text-right">
+                    Table
+                  </Label>
+                  <select
+                    id="tableNumber"
+                    value={editForm.tableNumber}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, tableNumber: parseInt(e.target.value) }))}
+                    className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {Array.from({ length: 5 }, (_, i) => i + 1).map(num => (
+                      <option key={num} value={num}>Table {num}</option>
+                    ))}
+                  </select>
+                </div>
+                {renderSeatGrid()}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setEditing(false);
+                setSelectedFile(null);
+              }}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditCake} disabled={updating}>
+                {updating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Cake'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* --- ALL YOUR ORIGINAL JSX REMAINS BELOW, UNTOUCHED --- */}
 
@@ -189,12 +910,31 @@ const Dashboard = () => {
               <CardTitle className="text-center text-2xl">Your Progress</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex justify-center">
-                <div className="w-full max-w-md bg-muted rounded-full h-3">
-                  <div className="bg-gradient-primary h-3 rounded-full transition-smooth" style={{ width: "25%" }}></div>
-                </div>
-              </div>
-              <p className="text-center text-muted-foreground mt-2">1 of 4 steps completed</p>
+                             <div className="flex justify-center">
+                 <div className="w-full max-w-md bg-muted rounded-full h-3">
+                   <div 
+                     className="bg-gradient-primary h-3 rounded-full transition-smooth" 
+                     style={{ 
+                       width: `${(() => {
+                         let completedSteps = 1; // Registration is always completed
+                         if (userProgress.cakeUpload.completed) completedSteps++;
+                         if (userProgress.checkin.completed) completedSteps++;
+                         if (userProgress.voting.completed) completedSteps++;
+                         return `${(completedSteps / 4) * 100}%`;
+                       })()}` 
+                     }}
+                   ></div>
+                 </div>
+               </div>
+               <p className="text-center text-muted-foreground mt-2">
+                 {(() => {
+                   let completedSteps = 1; // Registration is always completed
+                   if (userProgress.cakeUpload.completed) completedSteps++;
+                   if (userProgress.checkin.completed) completedSteps++;
+                   if (userProgress.voting.completed) completedSteps++;
+                   return `${completedSteps} of 4`;
+                 })()} steps completed
+               </p>
             </CardContent>
           </Card>
         </div>
@@ -218,7 +958,23 @@ const Dashboard = () => {
                 </div>
                 <p className="text-muted-foreground mb-6">{step.description}</p>
                 <Button variant={step.status === "pending" ? "cake" : "soft"} className={`w-full ${step.status === "completed" ? "bg-green-100 text-green-700 hover:bg-green-100 hover:text-green-700" : ""}`} disabled={step.status === "locked"} asChild={step.status === "pending"}>
-                  {step.status === "completed" ? (<span>🍰 Registered & Paid Successfully 🎉</span>) : step.status === "pending" ? (<Link to={step.link}>Start Now</Link>) : (<span>Complete Previous Step</span>)}
+                  {step.status === "completed" ? (
+                    step.id === "registration" ? (
+                      <span>🍰 Registered & Paid Successfully 🎉</span>
+                    ) : step.id === "cakeUpload" ? (
+                      <span>🍰 Cake Uploaded Successfully 🎉</span>
+                    ) : step.id === "checkin" ? (
+                      <span>✅ Checked In Successfully 🎉</span>
+                    ) : step.id === "voting" ? (
+                      <span>🗳️ Voting Completed 🎉</span>
+                    ) : (
+                      <span>Completed</span>
+                    )
+                  ) : step.status === "pending" ? (
+                    <Link to={step.link}>Start Now</Link>
+                  ) : (
+                    <span>Complete Previous Step</span>
+                  )}
                 </Button>
               </CardContent>
             </Card>

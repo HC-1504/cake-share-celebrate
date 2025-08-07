@@ -14,6 +14,10 @@ import NotFound from "./pages/NotFound";
 import UploadCake from "@/pages/upload-cake";
 import Voting from "@/pages/voting";
 import Checkin from "@/pages/checkin";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
+import Test3D from "@/pages/Test3D";
+import Test3DSize from "@/pages/Test3DSize";
 import { getAuthToken, setAuthToken, removeAuthToken } from "@/lib/utils";
 import { createContext, useContext, useState, useEffect } from "react";
 import { Web3ModalProvider } from '@/config/web3'
@@ -81,6 +85,10 @@ const App = () => (
                 <Route path="/upload-cake" element={<UploadCake />} />
                 <Route path="/voting" element={<Voting />} />
                 <Route path="/checkin" element={<Checkin />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/test-3d" element={<Test3D />} />
+                <Route path="/test-3d-size" element={<Test3DSize />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
