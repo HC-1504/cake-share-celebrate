@@ -133,17 +133,6 @@ const Voting = () => {
     }
   }, [isConfirmed, pendingTxHash, submittingId, votingCategory, votingStatus, token, address, toast]);
 
-  const canVote = useMemo(() => !votingStatus[votingCategory], [votingCategory, votingStatus]);
-
-  // Update blockchain loading state
-  useEffect(() => {
-    if (address) {
-      setBlockchainLoading(isCheckingBlockchain);
-    } else {
-      setBlockchainLoading(false);
-    }
-  }, [address, isCheckingBlockchain]);
-
   // Check if user has already voted for this category on the blockchain
   const { data: hasVotedOnChain, isLoading: isCheckingBlockchain } = useReadContract({
     address: cakeVotingAddress[holesky.id],
@@ -155,6 +144,17 @@ const Voting = () => {
       enabled: !!address,
     },
   });
+
+  const canVote = useMemo(() => !votingStatus[votingCategory], [votingCategory, votingStatus]);
+
+  // Update blockchain loading state
+  useEffect(() => {
+    if (address) {
+      setBlockchainLoading(isCheckingBlockchain);
+    } else {
+      setBlockchainLoading(false);
+    }
+  }, [address, isCheckingBlockchain]);
 
   // Check voting status for both categories
   const { data: hasVotedBeautiful } = useReadContract({

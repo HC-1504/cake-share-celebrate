@@ -5,6 +5,7 @@ import React from 'react'
 import { createWeb3Modal } from '@web3modal/wagmi/react'
 import { holesky } from 'wagmi/chains'
 import { createPublicClient } from 'viem'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 const projectId = '3b4a24e3058f5f15083dfbfe0164912f'
 
@@ -41,10 +42,15 @@ createWeb3Modal({
 
 export { wagmiConfig, publicClient }
 
+// Create a separate QueryClient for wagmi
+const wagmiQueryClient = new QueryClient()
+
 export const Web3ModalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return (
         <WagmiProvider config={wagmiConfig}>
-            {children}
+            <QueryClientProvider client={wagmiQueryClient}>
+                {children}
+            </QueryClientProvider>
         </WagmiProvider>
     )
 }
