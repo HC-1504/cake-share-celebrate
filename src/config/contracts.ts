@@ -938,6 +938,6 @@ export const cakeVotingABI = [
 ] as const
 
 export const cakeVotingAddress = {
-  [holesky.id]: '0x358AA13c52544ECCEF6B0ADD0f801012ADAD5eE3' as `0x${string}`,
+  [holesky.id]: '0x52D7B119456cf30844a8Caad3d9553eDcC092359' as `0x${string}`, // ✅ Successfully deployed contract
 }
 

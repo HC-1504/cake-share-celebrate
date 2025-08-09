@@ -323,26 +323,43 @@ const Voting = () => {
           </div>
         )}
 
-        {/* Contract Debug Info - Hidden for presentation */}
-        {/* <ContractTest /> */}
+        {/* Contract Debug Info - Enabled for debugging */}
+        {/*<ContractTest />*/}
 
         {/* Voting Instructions */}
-        {address && (hasVotedBeautiful || hasVotedDelicious) && (
+        {address && (hasVotedBeautiful || hasVotedDelicious || votingStatus.beautiful || votingStatus.delicious) && (
           <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <div className="flex items-start gap-3">
               <div className="text-yellow-600 text-xl">💡</div>
               <div>
                 <h3 className="font-medium text-yellow-800 mb-2">Voting Status & Instructions</h3>
                 <div className="text-sm text-yellow-700 space-y-1">
-                  {hasVotedBeautiful && hasVotedDelicious ? (
-                    <p>🎉 You've completed voting in both categories! To test more votes, connect a different wallet address.</p>
-                  ) : hasVotedBeautiful ? (
-                    <p>✅ You've voted for "Beautiful" category. You can still vote for "Delicious" category!</p>
-                  ) : hasVotedDelicious ? (
-                    <p>✅ You've voted for "Delicious" category. You can still vote for "Beautiful" category!</p>
+                  {/* Check both database and blockchain status */}
+                  {(hasVotedBeautiful || votingStatus.beautiful) && (hasVotedDelicious || votingStatus.delicious) ? (
+                    <p>🎉 You've completed voting in both categories!
+                      {(!hasVotedBeautiful || !hasVotedDelicious) && (
+                        <span> Your current wallet can still vote in categories you haven't voted with this wallet yet.</span>
+                      )}
+                    </p>
+                  ) : (hasVotedBeautiful || votingStatus.beautiful) ? (
+                    <p>✅ You've voted for "Beautiful" category.
+                      {!hasVotedDelicious && !votingStatus.delicious ? (
+                        <span> You can still vote for "Delicious" category!</span>
+                      ) : (
+                        <span> You've also voted for "Delicious" category with a different wallet.</span>
+                      )}
+                    </p>
+                  ) : (hasVotedDelicious || votingStatus.delicious) ? (
+                    <p>✅ You've voted for "Delicious" category.
+                      {!hasVotedBeautiful && !votingStatus.beautiful ? (
+                        <span> You can still vote for "Beautiful" category!</span>
+                      ) : (
+                        <span> You've also voted for "Beautiful" category with a different wallet.</span>
+                      )}
+                    </p>
                   ) : null}
                   <p className="text-xs mt-2 text-yellow-600">
-                    The smart contract prevents duplicate votes per category to ensure fair voting.
+                    Database tracks your account history, blockchain tracks your current wallet's votes.
                   </p>
                 </div>
               </div>
@@ -361,6 +378,15 @@ const Voting = () => {
                 <div className={`text-xs px-2 py-1 rounded ${chainId === holesky.id ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                   {chainId === holesky.id ? '✅ Holesky Network' : `❌ Wrong Network (${chainId})`}
                 </div>
+              </div>
+              {/* Debug Info */}
+              <div className="mt-3 p-2 bg-gray-100 rounded text-xs text-left">
+                <p><strong>Debug Info:</strong></p>
+                <p>Contract Address: {cakeVotingAddress[holesky.id]}</p>
+                <p>Chain ID: {chainId}</p>
+                <p>Expected Chain: {holesky.id}</p>
+                <p>Has Voted Beautiful: {hasVotedBeautiful ? 'true' : 'false'}</p>
+                <p>Has Voted Delicious: {hasVotedDelicious ? 'true' : 'false'}</p>
               </div>
             </div>
           </div>
