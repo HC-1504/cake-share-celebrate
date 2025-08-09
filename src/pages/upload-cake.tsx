@@ -48,7 +48,7 @@ const UploadCake = () => {
       const saveToDatabase = async () => {
         try {
           const token = localStorage.getItem("auth_token");
-          const saveRes = await fetch("http://localhost:5001/api/cakes/save-to-db", {
+          const saveRes = await fetch("/api/cakes/save-to-db", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -119,7 +119,7 @@ const UploadCake = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:5001/api/occupied-seats', {
+      const response = await fetch('/api/occupied-seats', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -297,7 +297,7 @@ const UploadCake = () => {
       formDataObj.append("story", form.story);
       
       const token = localStorage.getItem("auth_token");
-      const res = await fetch("http://localhost:5001/api/cakes/upload-file", {
+      const res = await fetch("/api/cakes/upload-file", {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formDataObj,

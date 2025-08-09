@@ -34,7 +34,7 @@ const VoteModel = Vote(sequelize);
 UserModel.hasMany(CakeModel);
 CakeModel.belongsTo(UserModel);
 
-UserModel.hasOne(VoteModel);
+UserModel.hasMany(VoteModel);
 VoteModel.belongsTo(UserModel);
 CakeModel.hasMany(VoteModel);
 VoteModel.belongsTo(CakeModel);

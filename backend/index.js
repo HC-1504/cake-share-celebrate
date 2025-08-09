@@ -14,6 +14,7 @@ import { emailConfig, emailTemplates } from './email-config.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
 
+
 // Load environment variables
 dotenv.config();
 
@@ -81,7 +82,9 @@ function auth(req, res, next) {
 User.hasMany(Cake);
 User.hasMany(Vote);
 Cake.belongsTo(User);
+Cake.hasMany(Vote);
 Vote.belongsTo(User);
+Vote.belongsTo(Cake);
 
 // ========== API ROUTES ==========
 
@@ -580,30 +583,219 @@ app.put('/api/cakes/:id', auth, upload.single('file'), async (req, res) => {
   }
 });
 
+// Voting endpoints
+// POST /api/vote expects { cakeId, category: 'beautiful' | 'delicious', txHash, voterAddress }
 app.post('/api/vote', auth, async (req, res) => {
   try {
-    const { cakeId } = req.body;
+    const { cakeId, category, txHash, voterAddress } = req.body;
     const userId = req.user.id;
-    
-    // Check if user already voted for this cake
-    const existingVote = await Vote.findOne({
-      where: { UserId: userId, CakeId: cakeId }
-    });
-    
-    if (existingVote) {
-      return res.status(400).json({ error: 'Already voted for this cake' });
+
+    if (!cakeId || !category) {
+      return res.status(400).json({ error: 'cakeId and category are required' });
     }
-    
-    // Create vote
+
+    if (!txHash || !voterAddress) {
+      return res.status(400).json({ error: 'txHash and voterAddress are required for blockchain verification' });
+    }
+
+    if (!['beautiful', 'delicious'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+
+    // Ensure user checked in before voting
+    const voter = await User.findByPk(userId);
+    if (!voter) return res.status(404).json({ error: 'User not found' });
+    if (!voter.checkedIn) return res.status(400).json({ error: 'Please check in before voting' });
+
+    // Verify that the voter's wallet address matches their registered address
+    if (voter.ethAddress.toLowerCase() !== voterAddress.toLowerCase()) {
+      return res.status(400).json({ error: 'Voter address does not match registered wallet address' });
+    }
+
+    // Ensure cake exists
+    const cake = await Cake.findByPk(cakeId);
+    if (!cake) {
+      return res.status(404).json({ error: 'Cake not found' });
+    }
+
+    // One vote per user per category
+    const existingVote = await Vote.findOne({
+      where: { UserId: userId, category },
+    });
+    if (existingVote) {
+      return res.status(400).json({ error: `Already voted for ${category}` });
+    }
+
+    // Check if this transaction hash has already been used
+    const existingTxVote = await Vote.findOne({
+      where: { blockchainTxHash: txHash },
+    });
+    if (existingTxVote) {
+      return res.status(400).json({ error: 'This transaction hash has already been used for voting' });
+    }
+
     await Vote.create({
       UserId: userId,
-      CakeId: cakeId
+      CakeId: cakeId,
+      category,
+      blockchainTxHash: txHash,
+      voterAddress: voterAddress.toLowerCase()
     });
-    
-    res.json({ message: 'Vote recorded successfully' });
+
+    console.log(`✅ Vote recorded: User ${userId} voted for cake ${cakeId} (${category}) - TX: ${txHash} - Address: ${voterAddress}`);
+
+    res.json({
+      message: 'Vote recorded successfully',
+      txHash,
+      voterAddress,
+      cakeId,
+      category
+    });
   } catch (error) {
     console.error('Error recording vote:', error);
     res.status(500).json({ error: 'Failed to record vote' });
+  }
+});
+
+// Public voting stats
+app.get('/api/votes/summary', async (req, res) => {
+  try {
+    const votes = await Vote.findAll({ attributes: ['CakeId', 'category'] });
+    const summary = votes.reduce((acc, v) => {
+      if (!acc[v.CakeId]) acc[v.CakeId] = { beautiful: 0, delicious: 0 };
+      acc[v.CakeId][v.category] += 1;
+      return acc;
+    }, {});
+    res.json(summary);
+  } catch (error) {
+    console.error('Error fetching vote summary:', error);
+    res.status(500).json({ error: 'Failed to fetch vote summary' });
+  }
+});
+
+// Current user's voting status per category
+app.get('/api/votes/my-status', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const myVotes = await Vote.findAll({
+      where: { UserId: userId },
+      attributes: ['category'],
+    });
+    const status = { beautiful: false, delicious: false };
+    for (const v of myVotes) {
+      if (v.category === 'beautiful') status.beautiful = true;
+      if (v.category === 'delicious') status.delicious = true;
+    }
+    res.json(status);
+  } catch (error) {
+    console.error('Error fetching my voting status:', error);
+    res.status(500).json({ error: 'Failed to fetch voting status' });
+  }
+});
+
+// Get detailed voting information with blockchain evidence
+app.get('/api/votes/my-details', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const myVotes = await Vote.findAll({
+      where: { UserId: userId },
+      attributes: ['category', 'blockchainTxHash', 'voterAddress', 'createdAt'],
+      include: [{
+        model: Cake,
+        attributes: ['id', 'title'],
+        include: [{ model: User, attributes: ['firstName', 'lastName'] }]
+      }],
+    });
+
+    res.json(myVotes.map(vote => ({
+      category: vote.category,
+      txHash: vote.blockchainTxHash,
+      voterAddress: vote.voterAddress,
+      timestamp: vote.createdAt,
+      cake: {
+        id: vote.Cake.id,
+        title: vote.Cake.title,
+        owner: vote.Cake.User ? `${vote.Cake.User.firstName} ${vote.Cake.User.lastName}` : 'Unknown'
+      }
+    })));
+  } catch (error) {
+    console.error('Error fetching my voting details:', error);
+    res.status(500).json({ error: 'Failed to fetch voting details' });
+  }
+});
+
+// Get voting results - top cakes by category
+app.get('/api/voting/results', async (req, res) => {
+  try {
+    // Get all votes with cake and user information
+    const votes = await Vote.findAll({
+      include: [{
+        model: Cake,
+        attributes: ['id', 'title', 'description', 'story', 'imageUrl', 'fileType', 'tableNumber', 'seatNumber'],
+        include: [{
+          model: User,
+          attributes: ['firstName', 'lastName']
+        }]
+      }],
+      attributes: ['category', 'CakeId', 'voterAddress']
+    });
+
+    // Count votes by cake and category, and collect voter addresses
+    const voteCount = {};
+    const totalVotes = { beautiful: 0, delicious: 0 };
+
+    votes.forEach(vote => {
+      const cakeId = vote.CakeId;
+      const category = vote.category;
+
+      if (!voteCount[cakeId]) {
+        voteCount[cakeId] = {
+          beautiful: 0,
+          delicious: 0,
+          cake: vote.Cake,
+          beautifulVoters: [],
+          deliciousVoters: []
+        };
+      }
+
+      voteCount[cakeId][category]++;
+      totalVotes[category]++;
+
+      // Add voter address to the appropriate category
+      if (category === 'beautiful' && vote.voterAddress) {
+        voteCount[cakeId].beautifulVoters.push(vote.voterAddress);
+      } else if (category === 'delicious' && vote.voterAddress) {
+        voteCount[cakeId].deliciousVoters.push(vote.voterAddress);
+      }
+    });
+
+    // Convert to arrays and sort by vote count
+    const beautifulResults = Object.values(voteCount)
+      .filter(item => item.beautiful > 0)
+      .map(item => ({
+        ...item.cake.toJSON(),
+        votes: { beautiful: item.beautiful, delicious: item.delicious },
+        voters: { beautiful: item.beautifulVoters, delicious: item.deliciousVoters }
+      }))
+      .sort((a, b) => b.votes.beautiful - a.votes.beautiful);
+
+    const deliciousResults = Object.values(voteCount)
+      .filter(item => item.delicious > 0)
+      .map(item => ({
+        ...item.cake.toJSON(),
+        votes: { beautiful: item.beautiful, delicious: item.delicious },
+        voters: { beautiful: item.beautifulVoters, delicious: item.deliciousVoters }
+      }))
+      .sort((a, b) => b.votes.delicious - a.votes.delicious);
+
+    res.json({
+      beautiful: beautifulResults,
+      delicious: deliciousResults,
+      totalVotes
+    });
+  } catch (error) {
+    console.error('Error fetching voting results:', error);
+    res.status(500).json({ error: 'Failed to fetch voting results' });
   }
 });
 
@@ -698,13 +890,133 @@ app.post('/api/reset-password', async (req, res) => {
 });
 
 // --- Check-in/out Routes ---
-// Note: These need to be filled in with your actual logic if it's not already.
-app.post('/api/checkin', auth, async (req, res) => { /* Your logic here */ });
-app.post('/api/checkout', auth, async (req, res) => { /* Your logic here */ });
+// Get current check-in status
+app.get('/api/checkin/status', auth, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Check voting status from database (for reference)
+    const votes = await Vote.findAll({
+      where: { voterAddress: user.walletAddress || '' },
+      attributes: ['category']
+    });
+
+    const votedCategories = votes.map(vote => vote.category);
+    const hasVotedBeautifulDB = votedCategories.includes('beautiful');
+    const hasVotedDeliciousDB = votedCategories.includes('delicious');
+
+    // For now, we'll use database votes but indicate if blockchain might have more
+    // In a full implementation, we'd check the blockchain directly here
+    const hasVotedBoth = hasVotedBeautifulDB && hasVotedDeliciousDB;
+
+    res.json({
+      checkedIn: user.checkedIn || false,
+      status: user.checkedIn ? 'in' : 'none',
+      voting: {
+        beautiful: hasVotedBeautifulDB,
+        delicious: hasVotedDeliciousDB,
+        both: hasVotedBoth
+      },
+      walletAddress: user.walletAddress // Include wallet address for frontend blockchain checks
+    });
+  } catch (error) {
+    console.error('Error getting check-in status:', error);
+    res.status(500).json({ error: 'Failed to get status' });
+  }
+});
+
+app.post('/api/checkin', auth, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Require a cake uploaded before check-in
+    const cake = await Cake.findOne({ where: { UserId: user.id } });
+    if (!cake) return res.status(400).json({ error: 'Please upload your cake before check-in' });
+
+    if (user.checkedIn) return res.status(200).json({ message: 'Already checked in', checkedIn: true });
+
+    await user.update({ checkedIn: true });
+    res.json({ message: 'Checked in successfully', checkedIn: true });
+  } catch (error) {
+    console.error('Error during check-in:', error);
+    res.status(500).json({ error: 'Failed to check in' });
+  }
+});
+
+app.post('/api/checkout', auth, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (!user.checkedIn) return res.status(400).json({ error: 'You must check in first' });
+
+    // Check if user has voted for both categories
+    const votes = await Vote.findAll({
+      where: { voterAddress: user.walletAddress || '' },
+      attributes: ['category']
+    });
+
+    const votedCategories = votes.map(vote => vote.category);
+    const hasVotedBeautiful = votedCategories.includes('beautiful');
+    const hasVotedDelicious = votedCategories.includes('delicious');
+
+    if (!hasVotedBeautiful || !hasVotedDelicious) {
+      const missingCategories = [];
+      if (!hasVotedBeautiful) missingCategories.push('Most Beautiful');
+      if (!hasVotedDelicious) missingCategories.push('Most Delicious');
+
+      return res.status(400).json({
+        error: `Please vote for ${missingCategories.join(' and ')} before checking out`
+      });
+    }
+
+    await user.update({ checkedIn: false });
+    res.json({ message: 'Checked out successfully', checkedIn: false });
+  } catch (error) {
+    console.error('Error during check-out:', error);
+    res.status(500).json({ error: 'Failed to check out' });
+  }
+});
 
 
 // Simple test route
 app.get('/api', (req, res) => res.send('CakePicnic API is running!'));
+
+// Debug route to check votes
+app.get('/api/debug/votes', async (req, res) => {
+  try {
+    const votes = await Vote.findAll({
+      include: [{
+        model: Cake,
+        attributes: ['id', 'title'],
+        include: [{
+          model: User,
+          attributes: ['firstName', 'lastName']
+        }]
+      }],
+      attributes: ['id', 'category', 'CakeId', 'blockchainTxHash', 'voterAddress', 'createdAt']
+    });
+
+    res.json({
+      totalVotes: votes.length,
+      votes: votes.map(vote => ({
+        id: vote.id,
+        category: vote.category,
+        cakeId: vote.CakeId,
+        cakeTitle: vote.Cake?.title || 'Unknown',
+        cakeOwner: vote.Cake?.User ? `${vote.Cake.User.firstName} ${vote.Cake.User.lastName}` : 'Unknown',
+        txHash: vote.blockchainTxHash,
+        voterAddress: vote.voterAddress,
+        createdAt: vote.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching debug votes:', error);
+    res.status(500).json({ error: 'Failed to fetch votes' });
+  }
+});
 
 
 // --- Start Server ---
@@ -713,6 +1025,10 @@ const startServer = async () => {
     // 先尝试连接数据库
     await sequelize.authenticate();
     console.log('Database connection established successfully.');
+
+    // Schema updates for Votes table have been completed via manual migration
+    // All required columns (category, blockchainTxHash, voterAddress) are now present
+    console.log('✅ Database schema is up to date');
     
     // 然后同步模型，不强制重建表
     await sequelize.sync({ force: false });

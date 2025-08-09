@@ -1,0 +1,78 @@
+{
+  "networks": {
+    "holesky": {
+      "chainId": 17000,
+      "contracts": {
+        "CakePicnic": {
+          "address": "0x...",
+          "deploymentTxHash": "0x...",
+          "deploymentBlock": 0,
+          "deploymentDate": "2025-01-XX",
+          "gasUsed": 0,
+          "etherscanUrl": "https://holesky.etherscan.io/address/0x..."
+        },
+        "CakeUpload": {
+          "address": "0x...",
+          "deploymentTxHash": "0x...",
+          "deploymentBlock": 0,
+          "deploymentDate": "2025-01-XX",
+          "gasUsed": 0,
+          "etherscanUrl": "https://holesky.etherscan.io/address/0x..."
+        },
+        "CakeVoting": {
+          "address": "0x...",
+          "deploymentTxHash": "0x...",
+          "deploymentBlock": 0,
+          "deploymentDate": "2025-01-XX",
+          "gasUsed": 0,
+          "etherscanUrl": "https://holesky.etherscan.io/address/0x..."
+        }
+      },
+      "deployer": "0x..."
+    }
+  },
+  "contractInfo": {
+    "platform": "Cake Share & Celebrate",
+    "version": "1.0.0",
+    "description": "Complete blockchain-based cake competition platform with three interconnected smart contracts",
+    "contracts": {
+      "CakePicnic": {
+        "purpose": "Event registration and payment processing",
+        "features": [
+          "ETH-based registration fees",
+          "Multiple event categories",
+          "Dynamic category management",
+          "Secure payment processing",
+          "Owner-controlled withdrawals"
+        ],
+        "categories": {
+          "Normal": "0.01 ETH - 120 minutes",
+          "Premium": "0.03 ETH - 180 minutes",
+          "Family": "0.05 ETH - 150 minutes",
+          "PremiumFamily": "0.08 ETH - 240 minutes"
+        }
+      },
+      "CakeUpload": {
+        "purpose": "Cake metadata management and seat assignment",
+        "features": [
+          "On-chain cake metadata storage",
+          "Image and 3D model support",
+          "Table and seat management (5 tables, 6 seats each)",
+          "Real-time seat availability",
+          "User ownership controls"
+        ]
+      },
+      "CakeVoting": {
+        "purpose": "Blockchain voting system",
+        "features": [
+          "Immutable vote recording",
+          "Duplicate vote prevention",
+          "Category-based voting (beautiful/delicious)",
+          "Vote verification functions",
+          "Admin vote reset capabilities"
+        ]
+      }
+    },
+    "integration": "All three contracts work together to provide a complete cake competition platform"
+  }
+}

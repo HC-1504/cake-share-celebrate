@@ -36,7 +36,7 @@ const Gallery = () => {
 
   const fetchCakes = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/cakes/public', {
+      const response = await fetch('/api/cakes/public', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

@@ -13,6 +13,7 @@ import Dashboard from "@/pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import UploadCake from "@/pages/upload-cake";
 import Voting from "@/pages/voting";
+import Results from "@/pages/Results";
 import Checkin from "@/pages/checkin";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
@@ -84,6 +85,7 @@ const App = () => (
                 {/* Placeholder routes that redirect to dashboard for now */}
                 <Route path="/upload-cake" element={<UploadCake />} />
                 <Route path="/voting" element={<Voting />} />
+                <Route path="/results" element={<Results />} />
                 <Route path="/checkin" element={<Checkin />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />

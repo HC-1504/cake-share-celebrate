@@ -127,16 +127,21 @@ const Dashboard = () => {
   const [userProgress, setUserProgress] = useState({
     registration: { completed: true, status: "completed" },
     cakeUpload: { completed: false, status: "pending" },
+    checkin: { completed: false, status: "locked" },
     voting: { completed: false, status: "locked" },
-    checkin: { completed: false, status: "locked" }
+    checkout: { completed: false, status: "locked" },
   });
+
+  const [votingStatus, setVotingStatus] = useState<{ beautiful: boolean; delicious: boolean }>({ beautiful: false, delicious: false });
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   // Function to fetch user's cake from database
   const fetchUserCake = async () => {
     if (!token) return;
     
     try {
-      const res = await fetch("http://localhost:5001/api/cakes", {
+      const res = await fetch("/api/cakes", {
         headers: {
           "Authorization": `Bearer ${token}`,
         },
@@ -219,7 +224,7 @@ const Dashboard = () => {
   const fetchOccupiedSeats = async () => {
     try {
       setLoadingSeats(true);
-      const response = await fetch('http://localhost:5001/api/occupied-seats', {
+      const response = await fetch('/api/occupied-seats', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -373,7 +378,7 @@ const Dashboard = () => {
         // If no blockchain cake IDs, just delete from database
         console.log('No blockchain cake IDs found, deleting from database only');
         
-        const res = await fetch(`http://localhost:5001/api/cakes/${userCake.id}`, {
+        const res = await fetch(`/api/cakes/${userCake.id}`, {
           method: 'DELETE',
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -415,7 +420,7 @@ const Dashboard = () => {
         return; // Don't try to fetch if there's no token
       }
       try {
-        const res = await fetch("http://localhost:5001/api/me", { // Using proxy
+        const res = await fetch("/api/me", {
           headers: {
             "Authorization": `Bearer ${token}`,
           },
@@ -426,9 +431,9 @@ const Dashboard = () => {
         }
         const data: User = await res.json();
         setUser(data); // Success! Store the user data.
-        
+
         // Check if user has uploaded a cake
-        const cakeRes = await fetch("http://localhost:5001/api/cakes", {
+        const cakeRes = await fetch("/api/cakes", {
           headers: {
             "Authorization": `Bearer ${token}`,
           },
@@ -438,19 +443,24 @@ const Dashboard = () => {
           const cakes = await cakeRes.json();
           const userCake = cakes.find((cake: Cake) => cake.UserId === data.id);
           setUserCake(userCake || null);
-          
+
           const hasUploadedCake = !!userCake;
-          
+          const isCheckedIn = !!data.checkedIn;
+
           setUserProgress(prev => ({
             ...prev,
-            cakeUpload: { 
-              completed: hasUploadedCake, 
-              status: hasUploadedCake ? "completed" : "pending" 
+            cakeUpload: {
+              completed: hasUploadedCake,
+              status: hasUploadedCake ? "completed" : "pending"
             },
             checkin: {
-              ...prev.checkin,
-              status: hasUploadedCake ? "pending" : "locked"
-            }
+              completed: isCheckedIn,
+              status: hasUploadedCake ? (isCheckedIn ? 'completed' : 'pending') : 'locked',
+            },
+            voting: {
+              ...prev.voting,
+              status: isCheckedIn ? prev.voting.status : 'locked',
+            },
           }));
         }
       } catch (err: any) {
@@ -462,6 +472,100 @@ const Dashboard = () => {
 
     fetchUserData();
   }, [token]); // This code runs whenever the token changes
+
+  // Fetch my voting status
+  useEffect(() => {
+    const fetchVotingStatus = async () => {
+      if (!token) return;
+      try {
+        const res = await fetch('/api/votes/my-status', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setVotingStatus(data);
+          const bothDone = !!data.beautiful && !!data.delicious;
+          setUserProgress(prev => ({
+            ...prev,
+            voting: { completed: bothDone, status: prev.checkin.completed ? (bothDone ? 'completed' : 'pending') : 'locked' },
+            checkout: { ...prev.checkout, status: bothDone && prev.checkin.completed ? 'pending' : 'locked' },
+          }));
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    fetchVotingStatus();
+  }, [token, user?.checkedIn]);
+
+  const handleStartCheckIn = async () => {
+    if (!token) return;
+    try {
+      setIsCheckingIn(true);
+      const res = await fetch('/api/checkin', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to check in');
+      toast({ title: 'Checked in', description: 'Welcome to the event!' });
+
+      // Update user state to reflect check-in
+      setUser(prev => prev ? { ...prev, checkedIn: true } : prev);
+
+      // Update progress state
+      setUserProgress(prev => ({
+        ...prev,
+        checkin: { completed: true, status: 'completed' },
+        voting: { ...prev.voting, status: 'pending' },
+      }));
+
+      // Refresh voting status after check-in
+      try {
+        const votingRes = await fetch('/api/votes/my-status', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (votingRes.ok) {
+          const votingData = await votingRes.json();
+          setVotingStatus(votingData);
+          const bothDone = !!votingData.beautiful && !!votingData.delicious;
+          setUserProgress(prev => ({
+            ...prev,
+            voting: { completed: bothDone, status: bothDone ? 'completed' : 'pending' },
+            checkout: { ...prev.checkout, status: bothDone ? 'pending' : 'locked' },
+          }));
+        }
+      } catch (e) {
+        // ignore voting status fetch error
+      }
+    } catch (e: any) {
+      toast({ title: 'Check-in failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
+  const handleStartCheckOut = async () => {
+    if (!token) return;
+    try {
+      setIsCheckingOut(true);
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to check out');
+      toast({ title: 'Checked out', description: 'Thanks for joining!' });
+      setUserProgress(prev => ({
+        ...prev,
+        checkout: { completed: true, status: 'completed' },
+      }));
+    } catch (e: any) {
+      toast({ title: 'Check-out failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
 
   // Update user cake when blockchain data changes
   useEffect(() => {
@@ -489,7 +593,7 @@ const Dashboard = () => {
       // Now delete from database
       const deleteFromDatabase = async () => {
         try {
-          const res = await fetch(`http://localhost:5001/api/cakes/${userCake.id}`, {
+          const res = await fetch(`/api/cakes/${userCake.id}`, {
             method: 'DELETE',
             headers: {
               "Authorization": `Bearer ${token}`,
@@ -588,19 +692,27 @@ const Dashboard = () => {
     { 
       id: "checkin", 
       title: "Event Check-in", 
-      description: "Check in when you arrive and confirm your presence at the event", 
+      description: "Check in instantly once you arrive — no page redirect", 
       icon: <MapPin className="h-6 w-6" />, 
-      link: "/checkin", 
+      link: "#", 
       status: userProgress.cakeUpload.completed ? userProgress.checkin.status : "locked" 
     },
     { 
       id: "voting", 
-      title: "Vote for Favorites", 
-      description: "Taste and vote for the most beautiful and delicious cakes", 
+      title: "Start Voting", 
+      description: "Vote for Most Beautiful and Most Delicious cakes", 
       icon: <Vote className="h-6 w-6" />, 
       link: "/voting", 
       status: userProgress.checkin.completed ? userProgress.voting.status : "locked" 
-    }
+    },
+    {
+      id: "checkout",
+      title: "Event Check-out",
+      description: "Check out instantly after voting — no redirect",
+      icon: <CheckCircle className="h-6 w-6" />,
+      link: "#",
+      status: userProgress.voting.completed ? userProgress.checkout.status : "locked",
+    },
   ];
 
   const getStatusIcon = (status: string): React.ReactNode => {
@@ -907,7 +1019,7 @@ const Dashboard = () => {
         <div className="mb-12">
           <Card className="border-0 shadow-soft">
             <CardHeader>
-              <CardTitle className="text-center text-2xl">Your Progress</CardTitle>
+          <CardTitle className="text-center text-2xl">Your Progress</CardTitle>
             </CardHeader>
             <CardContent>
                              <div className="flex justify-center">
@@ -920,7 +1032,8 @@ const Dashboard = () => {
                          if (userProgress.cakeUpload.completed) completedSteps++;
                          if (userProgress.checkin.completed) completedSteps++;
                          if (userProgress.voting.completed) completedSteps++;
-                         return `${(completedSteps / 4) * 100}%`;
+                         if (userProgress.checkout.completed) completedSteps++;
+                         return `${(completedSteps / 5) * 100}%`;
                        })()}` 
                      }}
                    ></div>
@@ -932,7 +1045,8 @@ const Dashboard = () => {
                    if (userProgress.cakeUpload.completed) completedSteps++;
                    if (userProgress.checkin.completed) completedSteps++;
                    if (userProgress.voting.completed) completedSteps++;
-                   return `${completedSteps} of 4`;
+                   if (userProgress.checkout.completed) completedSteps++;
+                   return `${completedSteps} of 5`;
                  })()} steps completed
                </p>
             </CardContent>
@@ -957,7 +1071,20 @@ const Dashboard = () => {
                   <div className="text-2xl font-bold text-muted-foreground">{index + 1}</div>
                 </div>
                 <p className="text-muted-foreground mb-6">{step.description}</p>
-                <Button variant={step.status === "pending" ? "cake" : "soft"} className={`w-full ${step.status === "completed" ? "bg-green-100 text-green-700 hover:bg-green-100 hover:text-green-700" : ""}`} disabled={step.status === "locked"} asChild={step.status === "pending"}>
+                <Button
+                  variant={step.status === "pending" ? "cake" : "soft"}
+                  className={`w-full ${step.status === "completed" ? "bg-green-100 text-green-700 hover:bg-green-100 hover:text-green-700" : ""}`}
+                  disabled={step.status === "locked"}
+                  onClick={() => {
+                    if (step.status !== 'pending') return;
+                    if (step.id === 'checkin') {
+                      handleStartCheckIn();
+                    } else if (step.id === 'checkout') {
+                      handleStartCheckOut();
+                    }
+                  }}
+                  asChild={step.status === "pending" && (step.id === 'cakeUpload' || step.id === 'voting')}
+                >
                   {step.status === "completed" ? (
                     step.id === "registration" ? (
                       <span>🍰 Registered & Paid Successfully 🎉</span>
@@ -967,11 +1094,17 @@ const Dashboard = () => {
                       <span>✅ Checked In Successfully 🎉</span>
                     ) : step.id === "voting" ? (
                       <span>🗳️ Voting Completed 🎉</span>
+                    ) : step.id === 'checkout' ? (
+                      <span>👋 Checked Out 🎉</span>
                     ) : (
                       <span>Completed</span>
                     )
                   ) : step.status === "pending" ? (
-                    <Link to={step.link}>Start Now</Link>
+                    step.id === 'cakeUpload' || step.id === 'voting' ? (
+                      <Link to={step.link}>Start Now</Link>
+                    ) : (
+                      <span>{step.id === 'checkin' ? (isCheckingIn ? 'Checking in...' : 'Start') : step.id === 'checkout' ? (isCheckingOut ? 'Checking out...' : 'Start') : 'Start'}</span>
+                    )
                   ) : (
                     <span>Complete Previous Step</span>
                   )}

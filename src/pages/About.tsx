@@ -30,23 +30,28 @@ const About = () => {
   const steps = [
     {
       step: "1",
-      title: "Register & Pay",
-      description: "Sign up for the event and secure your spot with a simple entry fee."
+      title: "Registration",
+      description: "Sign up for the event and secure your spot with registration."
     },
     {
       step: "2",
-      title: "Upload Cake Details",
+      title: "Upload Cake",
       description: "Share photos, ingredients, and the story behind your homemade creation."
     },
     {
       step: "3",
-      title: "Vote for Favorites",
-      description: "Taste test and vote for the most beautiful and delicious cakes."
+      title: "Check In",
+      description: "Check in when you arrive at the event location."
     },
     {
       step: "4",
-      title: "Event Check-in",
-      description: "Check in when you arrive and let us know when you're ready to head home."
+      title: "Vote",
+      description: "Taste test and vote for the most beautiful and delicious cakes."
+    },
+    {
+      step: "5",
+      title: "Check Out",
+      description: "Check out when you're ready to leave the event."
     }
   ];
 
@@ -115,7 +120,7 @@ const About = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
             {steps.map((step, index) => (
               <div key={index} className="relative">
                 <Card className="border-0 shadow-soft hover:shadow-cake transition-smooth h-full">

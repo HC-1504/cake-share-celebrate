@@ -149,7 +149,7 @@ const Register = () => {
       }
 
       // Call the backend API
-      const res = await fetch("http://localhost:5001/api/register", {
+      const res = await fetch("/api/register", {
         method: "POST",
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({

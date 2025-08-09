@@ -15,6 +15,8 @@ const Navbar = () => {
     { path: isAuthenticated ? "/dashboard" : "/", label: "Home" },
     { path: "/about", label: "About" },
     { path: "/gallery", label: "Gallery" },
+    { path: "/voting", label: "Voting" },
+    { path: "/results", label: "Results" },
   ];
 
   return (
