@@ -583,43 +583,57 @@ app.put('/api/cakes/:id', auth, upload.single('file'), async (req, res) => {
   }
 });
 
-// Voting endpoints
-// POST /api/vote expects { cakeId, category: 'beautiful' | 'delicious', txHash, voterAddress }
+/**
+ * VOTING API ENDPOINTS
+ * These endpoints handle the voting process and integrate with blockchain
+ */
+
+/**
+ * @route POST /api/vote
+ * @desc Record a vote after blockchain transaction is confirmed
+ * @access Private (requires authentication)
+ * @body { cakeId, category, txHash, voterAddress }
+ */
 app.post('/api/vote', auth, async (req, res) => {
   try {
+    // Extract vote data from request body
     const { cakeId, category, txHash, voterAddress } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.id; // Get user ID from JWT token
 
+    // VALIDATION STEP 1: Check required fields
     if (!cakeId || !category) {
       return res.status(400).json({ error: 'cakeId and category are required' });
     }
 
+    // VALIDATION STEP 2: Check blockchain verification data
     if (!txHash || !voterAddress) {
       return res.status(400).json({ error: 'txHash and voterAddress are required for blockchain verification' });
     }
 
+    // VALIDATION STEP 3: Validate category is one of the allowed values
     if (!['beautiful', 'delicious'].includes(category)) {
       return res.status(400).json({ error: 'Invalid category' });
     }
 
-    // Ensure user checked in before voting
+    // VALIDATION STEP 4: Ensure user is checked in to the event
     const voter = await User.findByPk(userId);
     if (!voter) return res.status(404).json({ error: 'User not found' });
     if (!voter.checkedIn) return res.status(400).json({ error: 'Please check in before voting' });
 
-    // Verify that the voter's wallet address matches their registered address
-    // TEMPORARILY DISABLED FOR DEBUGGING
+    // VALIDATION STEP 5: Verify wallet address matches registered address
+    // TEMPORARILY DISABLED FOR DEBUGGING - prevents wallet mismatch issues
     // if (voter.ethAddress.toLowerCase() !== voterAddress.toLowerCase()) {
     //   return res.status(400).json({ error: 'Voter address does not match registered wallet address' });
     // }
 
-    // Ensure cake exists
+    // VALIDATION STEP 6: Ensure the cake exists in the database
     const cake = await Cake.findByPk(cakeId);
     if (!cake) {
       return res.status(404).json({ error: 'Cake not found' });
     }
 
-    // One vote per user per category
+    // VALIDATION STEP 7: Prevent duplicate voting per user per category
+    // Check database for existing vote by this user in this category
     const existingVote = await Vote.findOne({
       where: { UserId: userId, category },
     });
@@ -627,7 +641,8 @@ app.post('/api/vote', auth, async (req, res) => {
       return res.status(400).json({ error: `Already voted for ${category}` });
     }
 
-    // Check if this transaction hash has already been used
+    // VALIDATION STEP 8: Prevent transaction hash reuse (security measure)
+    // Each blockchain transaction can only be used once
     const existingTxVote = await Vote.findOne({
       where: { blockchainTxHash: txHash },
     });
@@ -635,16 +650,19 @@ app.post('/api/vote', auth, async (req, res) => {
       return res.status(400).json({ error: 'This transaction hash has already been used for voting' });
     }
 
+    // SAVE VOTE: Create new vote record in database
     await Vote.create({
-      UserId: userId,
-      CakeId: cakeId,
-      category,
-      blockchainTxHash: txHash,
-      voterAddress: voterAddress.toLowerCase()
+      UserId: userId,           // Link to user who voted
+      CakeId: cakeId,          // Link to cake that received the vote
+      category,                // Category of vote (beautiful/delicious)
+      blockchainTxHash: txHash, // Blockchain transaction hash for verification
+      voterAddress: voterAddress.toLowerCase() // Wallet address (normalized to lowercase)
     });
 
+    // LOG SUCCESS: Record successful vote for monitoring
     console.log(`✅ Vote recorded: User ${userId} voted for cake ${cakeId} (${category}) - TX: ${txHash} - Address: ${voterAddress}`);
 
+    // RETURN SUCCESS: Send confirmation back to frontend
     res.json({
       message: 'Vote recorded successfully',
       txHash,

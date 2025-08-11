@@ -75,43 +75,55 @@ const Voting = () => {
     run();
   }, [token]);
 
-  // Handle transaction confirmation and update database
+  /**
+   * BLOCKCHAIN TRANSACTION CONFIRMATION HANDLER
+   * This effect runs when a blockchain transaction is confirmed
+   * It then saves the vote to the database for user experience tracking
+   */
   useEffect(() => {
+    // Check if blockchain transaction is confirmed and we have pending data
     if (isConfirmed && pendingTxHash && submittingId) {
       const updateDatabase = async () => {
         try {
+          // STEP 1: Send vote data to backend API for database storage
           const res = await fetch('/api/vote', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`
+              Authorization: `Bearer ${token}` // JWT token for authentication
             },
             body: JSON.stringify({
-              cakeId: submittingId,
-              category: votingCategory,
-              txHash: pendingTxHash,
-              voterAddress: address
+              cakeId: submittingId,        // ID of cake that was voted for
+              category: votingCategory,     // "beautiful" or "delicious"
+              txHash: pendingTxHash,       // Blockchain transaction hash
+              voterAddress: address        // Wallet address that voted
             }),
           });
           const data = await res.json();
+
+          // STEP 2: Check if database save was successful
           if (!res.ok) throw new Error(data.error || 'Failed to record vote in database');
 
-          // Update local state
+          // STEP 3: Update local state to reflect successful vote
           const updated = { ...votingStatus, [votingCategory]: true };
           setVotingStatus(updated);
 
+          // STEP 4: Show success message to user
           toast({
             title: 'Vote Recorded!',
             description: `Your vote for "${votingCategory}" has been recorded on blockchain and database. Page will refresh to show updated status.`,
           });
 
-          // Reload page after successful vote to show updated status
+          // STEP 5: Reload page to show updated voting status
+          // This ensures UI reflects both blockchain and database state
           setPageReloading(true);
           setTimeout(() => {
             window.location.reload();
           }, 2000); // 2 second delay to let user see the success message
 
         } catch (e: any) {
+          // ERROR HANDLING: Database save failed but blockchain succeeded
+          // This is a partial failure - vote is recorded on blockchain but not in database
           toast({
             title: 'Database Error',
             description: `Blockchain vote succeeded but database update failed: ${e.message}. Page will refresh to show blockchain status.`,
@@ -119,11 +131,13 @@ const Voting = () => {
           });
 
           // Still reload to show blockchain status even if database failed
+          // User will see blockchain vote succeeded but database sync issue
           setPageReloading(true);
           setTimeout(() => {
             window.location.reload();
           }, 3000);
         } finally {
+          // CLEANUP: Reset pending transaction state
           setSubmittingId(null);
           setPendingTxHash(null);
         }
@@ -230,19 +244,22 @@ const Voting = () => {
         description: `Submitting your vote for "${votingCategory}" to the blockchain...`,
       });
 
-      // Call smart contract vote function
+      // STEP 6: Execute smart contract vote function
+      // This sends the transaction to the blockchain
       const hash = await writeContractAsync({
-        address: cakeVotingAddress[holesky.id],
-        abi: cakeVotingABI,
-        functionName: 'vote',
-        args: [BigInt(cakeId), votingCategory],
-        chain: holesky,
-        account: address,
+        address: cakeVotingAddress[holesky.id], // Smart contract address on Holesky
+        abi: cakeVotingABI,                     // Contract interface (function signatures)
+        functionName: 'vote',                   // Smart contract function to call
+        args: [BigInt(cakeId), votingCategory], // Parameters: cake ID and category
+        chain: holesky,                         // Blockchain network (Holesky testnet)
+        account: address,                       // User's wallet address
       });
 
+      // STEP 7: Store transaction hash for confirmation tracking
       console.log('✅ Transaction submitted:', hash);
-      setPendingTxHash(hash);
+      setPendingTxHash(hash); // This triggers the confirmation useEffect
 
+      // STEP 8: Inform user that transaction is pending confirmation
       toast({
         title: 'Transaction Submitted',
         description: `Transaction hash: ${hash.slice(0, 10)}...${hash.slice(-8)}. Waiting for confirmation...`,
