@@ -18,7 +18,7 @@ const TIER_VISUALS: { [key: string]: { emoji: string; description: string; durat
   "Normal": { emoji: '🍰', description: 'Basic entry access', duration: '2 hours' },
   "Premium": { emoji: '🎂', description: 'Extended entry duration', duration: '3 hours' },
   "Family": { emoji: '👨‍👩‍👧‍👦', description: 'Family entry access (up to 5 people)', duration: '2.5 hours' },
-  "PremiumFamily": { emoji: '👑', description: 'Extended family entry duration (up to 7 people)', duration: '4 hours' }
+  "Premium Family": { emoji: '👑', description: 'Extended family entry duration (up to 7 people)', duration: '4 hours' }
 };
 
 const Register = () => {
@@ -39,6 +39,15 @@ const Register = () => {
   const [categories, setCategories] = useState<(typeof TIER_VISUALS[string] & { name: string; fee: string })[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [error, setError] = useState("");
+  const [currency, setCurrency] = useState("eth");
+  const [exchangeRates, setExchangeRates] = useState<{ [key: string]: number }>({ eth: 1 });
+
+  const SUPPORTED_CURRENCIES = [
+    { value: "eth", label: "ETH" },
+    { value: "usd", label: "USD" },
+    { value: "eur", label: "EUR" },
+    { value: "myr", label: "MYR" },
+  ];
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -56,7 +65,7 @@ const Register = () => {
 
   // Fetch and merge category data
   useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchCategoriesAndRates = async () => {
       const activeChainId = chain?.id || holesky.id;
       if (!eventRegistrationAddress[activeChainId]) {
         setError("Contract not deployed on this network. Please switch to Holesky.");
@@ -86,13 +95,24 @@ const Register = () => {
         if (enrichedCategories.length > 0) {
           setSelectedCategory(enrichedCategories[0].name);
         }
+
+        // Fetch exchange rates
+        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd,eur,myr');
+        const rates = await res.json();
+        setExchangeRates({
+          eth: 1,
+          usd: rates.ethereum.usd,
+          eur: rates.ethereum.eur,
+          myr: rates.ethereum.myr,
+        });
+
       } catch (err) {
-        console.error("Failed to fetch categories:", err);
-        setError("Could not load registration categories from the contract.");
+        console.error("Failed to fetch categories or rates:", err);
+        setError("Could not load registration categories or exchange rates.");
       }
     };
 
-    fetchCategories();
+    fetchCategoriesAndRates();
   }, [chain?.id]);
 
   const connectWallet = () => {
@@ -203,6 +223,7 @@ const Register = () => {
 
   const isLoading = isSubmittingToWallet || paymentStatus === 'pending';
   const selectedFee = categories.find(c => c.name === selectedCategory)?.fee || "0";
+  const convertedFee = (parseFloat(selectedFee) * exchangeRates[currency]).toFixed(2);
 
   return (
     <div className="min-h-screen bg-gradient-background flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -251,6 +272,17 @@ const Register = () => {
               <div className="space-y-6">
                 <p className="text-center text-muted-foreground">Please select a tier and pay the entrance fee.</p>
                 <div className="space-y-4">
+                  <div className="flex justify-end mb-4">
+                    <select
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value)}
+                      className="p-2 border rounded-md"
+                    >
+                      {SUPPORTED_CURRENCIES.map(c => (
+                        <option key={c.value} value={c.value}>{c.label}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="grid grid-cols-1 gap-4">
                     {categories.map((cat) => (
                       <div
@@ -264,7 +296,9 @@ const Register = () => {
                             <div className="font-medium text-lg">{cat.name}</div>
                             <div className="text-sm text-muted-foreground">{cat.description}</div>
                             <div className="mt-2 text-base">
-                              <span className="font-semibold">{cat.fee} ETH</span> · {cat.duration}
+                              <span className="font-semibold">
+                                {currency === 'eth' ? `${cat.fee} ETH` : `${(parseFloat(cat.fee) * exchangeRates[currency]).toFixed(2)} ${currency.toUpperCase()}`}
+                              </span> · {cat.duration}
                             </div>
                           </div>
                         </div>
@@ -290,7 +324,7 @@ const Register = () => {
                     {isLoading || isSubmittingToServer ? (
                       <Loader2 className="animate-spin h-4 w-4 text-white" />
                     ) : (
-                      `Pay ${selectedFee} ETH and Register`
+                      `Pay ${currency === 'eth' ? `${selectedFee} ETH` : `~${convertedFee} ${currency.toUpperCase()}`} and Register`
                     )}
                   </Button>
                 </div>
