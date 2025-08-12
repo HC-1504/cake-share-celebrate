@@ -10,6 +10,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagm
 import { cakeUploadABI, cakeUploadAddress } from "@/config/contracts";
 import { holesky } from "wagmi/chains";
 import { toast } from "sonner";
+import WalletBalance from "@/components/WalletBalance";
 
 const UploadCake = () => {
   const { isAuthenticated } = useAuth();
@@ -523,125 +524,135 @@ const UploadCake = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-background">
-      <Card className="max-w-md w-full border-0 shadow-cake">
-        <CardHeader>
-          <CardTitle className="text-center text-xl">Upload Cake Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            {error && <div className="text-red-600 text-center mb-2">{error}</div>}
-            
-
-            
-            {/* Help section */}
-            <div className="text-xs text-muted-foreground p-3 bg-blue-50 rounded border border-blue-200">
-              <p className="font-medium mb-1">💡 Upload Rules:</p>
-              <ul className="space-y-1 text-xs">
-                <li>• Each user can only upload ONE cake (one-time upload)</li>
-                <li>• Each seat can only have ONE cake</li>
-                <li>• Occupied seats are disabled (❌)</li>
-                <li>• You can upload photos or 3D models (GLB files)</li>
-              </ul>
-            </div>
-            
-            {/* Debug info */}
-            <div className="text-xs text-muted-foreground p-3 bg-green-50 rounded border border-green-200">
-              <p className="font-medium mb-1">🔗 Blockchain Info:</p>
-              <div className="space-y-1 text-xs">
-                <div>Connected Wallet: {address}</div>
-                <div>Contract Address: {cakeUploadAddress[holesky.id]}</div>
-                <div>Network: Holesky Testnet</div>
-              </div>
-            </div>
-            
-            <div>
-              <Label htmlFor="title">Cake Title</Label>
-              <Input id="title" name="title" value={form.title} onChange={handleChange} required />
-            </div>
-            
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Input id="description" name="description" value={form.description} onChange={handleChange} required />
-            </div>
-            
-            <div>
-              <Label>File Type</Label>
-              <Select value={form.fileType} onValueChange={handleFileTypeChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select file type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="image">Photo</SelectItem>
-                  <SelectItem value="3d">3D Model (GLB)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="file">
-                {form.fileType === "image" ? "Cake Photo" : "3D Model File"}
-              </Label>
-              <Input 
-                id="file" 
-                name="file" 
-                type="file" 
-                accept={form.fileType === "image" ? "image/*" : ".glb"} 
-                onChange={handleChange} 
-                required 
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {form.fileType === "image" 
-                  ? "Upload a photo of your cake" 
-                  : "Upload a GLB 3D model file"
-                }
-              </p>
-            </div>
-            
-            <div>
-              <Label>Table Number</Label>
-              <Select value={form.tableNumber} onValueChange={handleTableChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select table" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 10 }, (_, i) => i + 1).map(num => (
-                    <SelectItem key={num} value={num.toString()}>Table {num}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {renderSeatGrid()}
-            
-            <div>
-              <Label htmlFor="story">Story Behind the Cake</Label>
-              <textarea 
-                id="story" 
-                name="story" 
-                value={form.story} 
-                onChange={handleChange} 
-                className="w-full rounded-md border px-3 py-2 min-h-[100px] resize-vertical" 
-                required 
-              />
-            </div>
-            
-            <Button 
-              type="submit" 
-              variant="cake" 
-              className="w-full"
-              disabled={uploadingToBlockchain || isConfirming}
-            >
-              {uploadingToBlockchain 
-                ? "Initiating Transaction..." 
-                : isConfirming 
-                ? "Confirming Transaction..." 
-                : "Upload Cake"
-              }
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen bg-gradient-background py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Wallet Balance */}
+          <div className="lg:col-span-1">
+            <WalletBalance />
+          </div>
+          
+          {/* Right Column - Upload Form */}
+          <div className="lg:col-span-2">
+            <Card className="w-full border-0 shadow-cake">
+              <CardHeader>
+                <CardTitle className="text-center text-xl">Upload Cake Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form className="space-y-4" onSubmit={handleSubmit}>
+                  {error && <div className="text-red-600 text-center mb-2">{error}</div>}
+                  
+                  {/* Help section */}
+                  <div className="text-xs text-muted-foreground p-3 bg-blue-50 rounded border border-blue-200">
+                    <p className="font-medium mb-1">💡 Upload Rules:</p>
+                    <ul className="space-y-1 text-xs">
+                      <li>• Each user can only upload ONE cake (one-time upload)</li>
+                      <li>• Each seat can only have ONE cake</li>
+                      <li>• Occupied seats are disabled (❌)</li>
+                      <li>• You can upload photos or 3D models (GLB files)</li>
+                    </ul>
+                  </div>
+                  
+                  {/* Debug info */}
+                  <div className="text-xs text-muted-foreground p-3 bg-green-50 rounded border border-green-200">
+                    <p className="font-medium mb-1">🔗 Blockchain Info:</p>
+                    <div className="space-y-1 text-xs">
+                      <div>Connected Wallet: {address}</div>
+                      <div>Contract Address: {cakeUploadAddress[holesky.id]}</div>
+                      <div>Network: Holesky Testnet</div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="title">Cake Title</Label>
+                    <Input id="title" name="title" value={form.title} onChange={handleChange} required />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="description">Description</Label>
+                    <Input id="description" name="description" value={form.description} onChange={handleChange} required />
+                  </div>
+                  
+                  <div>
+                    <Label>File Type</Label>
+                    <Select value={form.fileType} onValueChange={handleFileTypeChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select file type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="image">Photo</SelectItem>
+                        <SelectItem value="3d">3D Model (GLB)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="file">
+                      {form.fileType === "image" ? "Cake Photo" : "3D Model File"}
+                    </Label>
+                    <Input 
+                      id="file" 
+                      name="file" 
+                      type="file" 
+                      accept={form.fileType === "image" ? "image/*" : ".glb"} 
+                      onChange={handleChange} 
+                      required 
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {form.fileType === "image" 
+                        ? "Upload a photo of your cake" 
+                        : "Upload a GLB 3D model file"
+                      }
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <Label>Table Number</Label>
+                    <Select value={form.tableNumber} onValueChange={handleTableChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select table" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 5 }, (_, i) => i + 1).map(num => (
+                          <SelectItem key={num} value={num.toString()}>Table {num}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {renderSeatGrid()}
+                  
+                  <div>
+                    <Label htmlFor="story">Story Behind the Cake</Label>
+                    <textarea 
+                      id="story" 
+                      name="story" 
+                      value={form.story} 
+                      onChange={handleChange} 
+                      className="w-full rounded-md border px-3 py-2 min-h-[100px] resize-vertical" 
+                      required 
+                    />
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    variant="cake" 
+                    className="w-full"
+                    disabled={uploadingToBlockchain || isConfirming}
+                  >
+                    {uploadingToBlockchain 
+                      ? "Initiating Transaction..." 
+                      : isConfirming 
+                      ? "Confirming Transaction..." 
+                      : "Upload Cake"
+                    }
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
