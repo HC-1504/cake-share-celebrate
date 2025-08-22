@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link, useNavigate } from "react-router-dom";
 import { Cake, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/App";
@@ -18,7 +19,7 @@ const TIER_VISUALS: { [key: string]: { emoji: string; description: string; durat
   "Normal": { emoji: '🍰', description: 'Basic entry access', duration: '2 hours' },
   "Premium": { emoji: '🎂', description: 'Extended entry duration', duration: '3 hours' },
   "Family": { emoji: '👨‍👩‍👧‍👦', description: 'Family entry access (up to 5 people)', duration: '2.5 hours' },
-  "Premium Family": { emoji: '👑', description: 'Extended family entry duration (up to 7 people)', duration: '4 hours' }
+  "PremiumFamily": { emoji: '👑', description: 'Extended family entry duration (up to 7 people)', duration: '4 hours' }
 };
 
 const Register = () => {
@@ -165,7 +166,7 @@ const Register = () => {
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
       if (receipt.status === 'reverted') {
-        throw new Error("Transaction was reverted. Please check your balance and try again.");
+        throw new Error("Transaction was reverted. Please check your wallet address (can only registered once) or balance and try again.");
       }
 
       // Call the backend API
@@ -206,14 +207,43 @@ const Register = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleContinueToPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
+    if (!formData.email) {
+      setError("Email is required.");
+      return;
+    }
     setError("");
-    setStep('payment');
+    setIsSubmittingToServer(true);
+
+    try {
+      const res = await fetch("/api/check-email", {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to check email.');
+      }
+
+      if (data.exists) {
+        setError("This email address is already registered.");
+      } else {
+        setStep('payment');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(errorMessage);
+    } finally {
+      setIsSubmittingToServer(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -254,7 +284,7 @@ const Register = () => {
             {error && <div className="text-red-600 text-center mb-4 p-2 bg-red-100 rounded">{error}</div>}
 
             {step === 'form' && (
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleContinueToPayment} className="space-y-6">
                 {/* Form fields are unchanged and correct */}
                 <div className="grid grid-cols-2 gap-4">
                   <div><Label htmlFor="firstName">First name</Label><Input id="firstName" name="firstName" type="text" autoComplete="given-name" required value={formData.firstName} onChange={handleChange} className="mt-1" placeholder="First name" /></div>
@@ -273,15 +303,16 @@ const Register = () => {
                 <p className="text-center text-muted-foreground">Please select a tier and pay the entrance fee.</p>
                 <div className="space-y-4">
                   <div className="flex justify-end mb-4">
-                    <select
-                      value={currency}
-                      onChange={(e) => setCurrency(e.target.value)}
-                      className="p-2 border rounded-md"
-                    >
-                      {SUPPORTED_CURRENCIES.map(c => (
-                        <option key={c.value} value={c.value}>{c.label}</option>
-                      ))}
-                    </select>
+                    <Select onValueChange={(value) => setCurrency(value)} value={currency}>
+                      <SelectTrigger className="w-[100px]">
+                        <SelectValue placeholder="Currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_CURRENCIES.map(c => (
+                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="grid grid-cols-1 gap-4">
                     {categories.map((cat) => (

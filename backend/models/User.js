@@ -15,7 +15,10 @@ export default (sequelize) => {
   User.init({
     firstName: DataTypes.STRING,
     lastName: DataTypes.STRING,
-    email: DataTypes.STRING,
+    email: {
+      type: DataTypes.STRING,
+      unique: true,
+    },
     password: DataTypes.STRING,
     ethAddress: DataTypes.STRING,
     category: DataTypes.STRING,

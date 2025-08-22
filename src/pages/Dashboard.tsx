@@ -20,13 +20,15 @@ import {
   User as UserIcon, // <-- ADDED: For the user details card
   Trash2,       // <-- ADDED: For delete button
   Edit,         // <-- ADDED: For edit button
-  Cake          // <-- ADDED: For cake icon
+  Cake,          // <-- ADDED: For cake icon
+  ExternalLink // ADDED: For external link icon
 } from "lucide-react";
 import { useAuth } from "@/App";
 import { Navigate } from "react-router-dom";
 import { useAccount, useWriteContract, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
-import { cakeUploadABI, cakeUploadAddress } from '@/config/contracts';
+import { cakeUploadABI, cakeUploadAddress, eventRegistrationABI, eventRegistrationAddress } from '@/config/contracts';
 import { holesky } from 'wagmi/chains';
+import { publicClient } from '../config/web3';
 import { useToast } from '@/hooks/use-toast';
 import ModelViewer from '@/components/ModelViewer';
 import SimpleModelViewer from '@/components/SimpleModelViewer';
@@ -88,13 +90,13 @@ const Dashboard = () => {
     fileType: 'image'
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [occupiedSeats, setOccupiedSeats] = useState<Array<{tableNumber: number, seatNumber: number}>>([]);
+  const [occupiedSeats, setOccupiedSeats] = useState<Array<{ tableNumber: number, seatNumber: number }>>([]);
   const [loadingSeats, setLoadingSeats] = useState(false);
 
   // Wagmi hooks for smart contract interaction
   const { writeContract, isPending: isContractPending, data: deleteHash } = useWriteContract();
   const { toast } = useToast();
-  
+
   // Wait for delete transaction confirmation
   const { isSuccess: isDeleteConfirmed } = useWaitForTransactionReceipt({
     hash: deleteHash,
@@ -123,6 +125,9 @@ const Dashboard = () => {
     },
   });
 
+  // State to store the fetched registration event
+  const [registrationEvent, setRegistrationEvent] = useState<any>(null);
+
   // --- ALL YOUR ORIGINAL MOCK DATA AND HELPER FUNCTIONS ARE UNTOUCHED ---
   const [userProgress, setUserProgress] = useState({
     registration: { completed: true, status: "completed" },
@@ -139,14 +144,14 @@ const Dashboard = () => {
   // Function to fetch user's cake from database
   const fetchUserCake = async () => {
     if (!token) return;
-    
+
     try {
       const res = await fetch("/api/cakes", {
         headers: {
           "Authorization": `Bearer ${token}`,
         },
       });
-      
+
       if (res.ok) {
         const cakes = await res.json();
         const userCake = cakes.find((cake: Cake) => cake.UserId === user?.id);
@@ -162,12 +167,12 @@ const Dashboard = () => {
     if (!userCake || !token) return;
 
     setUpdating(true);
-    
+
     try {
       console.log('🔄 开始编辑蛋糕...');
       console.log('用户蛋糕ID:', userCake.id);
       console.log('编辑表单数据:', editForm);
-      
+
       const formData = new FormData();
       formData.append('title', editForm.title);
       formData.append('description', editForm.description);
@@ -175,14 +180,14 @@ const Dashboard = () => {
       formData.append('tableNumber', editForm.tableNumber.toString());
       formData.append('seatNumber', editForm.seatNumber.toString());
       formData.append('fileType', editForm.fileType);
-      
+
       if (selectedFile) {
         formData.append('file', selectedFile);
         console.log('📁 包含文件上传:', selectedFile.name);
       }
 
       console.log('📤 发送PUT请求到:', `http://localhost:5001/api/cakes/${userCake.id}`);
-      
+
       const res = await fetch(`http://localhost:5001/api/cakes/${userCake.id}`, {
         method: 'PUT',
         headers: {
@@ -280,7 +285,7 @@ const Dashboard = () => {
       const isOccupied = occupiedSeats.some(
         seat => seat.tableNumber === editForm.tableNumber && seat.seatNumber === i
       );
-      
+
       seats.push(
         <button
           key={i}
@@ -289,11 +294,11 @@ const Dashboard = () => {
           disabled={isOccupied}
           className={`
             w-16 h-16 border-2 rounded-lg flex items-center justify-center text-sm font-medium transition-all
-            ${isSelected 
-              ? 'border-orange-500 bg-orange-100 text-orange-700' 
+            ${isSelected
+              ? 'border-orange-500 bg-orange-100 text-orange-700'
               : isOccupied
-              ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'border-gray-300 hover:border-orange-300 hover:bg-orange-50'
+                ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'border-gray-300 hover:border-orange-300 hover:bg-orange-50'
             }
           `}
         >
@@ -325,14 +330,14 @@ const Dashboard = () => {
     if (!userCake || !token || !address) return;
 
     setDeleting(true);
-    
+
     try {
       // Step 1: Call smart contract to remove cake from blockchain
       if (userCakeIds && userCakeIds.length > 0) {
         try {
           console.log('Attempting to call smart contract...');
           console.log('Available cake IDs:', userCakeIds);
-          
+
           // Find the active cake ID to delete
           let activeCakeId = null;
           // Since we know from our analysis that ID 1 is active and ID 0 is inactive,
@@ -340,7 +345,7 @@ const Dashboard = () => {
           if (userCakeIds.length > 0) {
             activeCakeId = userCakeIds[userCakeIds.length - 1]; // Get the last cake ID
           }
-          
+
           if (activeCakeId !== null) {
             console.log('Deleting cake ID:', activeCakeId);
             writeContract({
@@ -352,18 +357,18 @@ const Dashboard = () => {
               account: address,
             });
             console.log('Smart contract call initiated');
-            
+
             toast({
               title: "Blockchain Transaction Initiated",
               description: "Removing cake from blockchain...",
             });
-            
+
             // The transaction confirmation will be handled by the useEffect hook
             // which listens to isConfirmed and hash changes
           } else {
             throw new Error('No active cake found to delete');
           }
-          
+
         } catch (contractError) {
           console.error('Smart contract error:', contractError);
           toast({
@@ -377,7 +382,7 @@ const Dashboard = () => {
       } else {
         // If no blockchain cake IDs, just delete from database
         console.log('No blockchain cake IDs found, deleting from database only');
-        
+
         const res = await fetch(`/api/cakes/${userCake.id}`, {
           method: 'DELETE',
           headers: {
@@ -438,7 +443,7 @@ const Dashboard = () => {
             "Authorization": `Bearer ${token}`,
           },
         });
-        
+
         if (cakeRes.ok) {
           const cakes = await cakeRes.json();
           const userCake = cakes.find((cake: Cake) => cake.UserId === data.id);
@@ -497,6 +502,57 @@ const Dashboard = () => {
     };
     fetchVotingStatus();
   }, [token, user?.checkedIn]);
+
+  // Define a type for the Registered event arguments
+  interface RegisteredEventArgs {
+    user: `0x${string}`;
+    timestamp: bigint;
+    category: string;
+  }
+
+  // Fetch user's registration event from blockchain
+  useEffect(() => {
+    const fetchRegistrationEvent = async () => {
+      if (!address || !eventRegistrationAddress[holesky.id] || !publicClient) return;
+
+      try {
+        const logs = await publicClient.getLogs({
+          address: eventRegistrationAddress[holesky.id],
+          event: {
+            anonymous: false,
+            inputs: [
+              { indexed: true, internalType: 'address', name: 'user', type: 'address' },
+              { indexed: false, internalType: 'uint256', name: 'timestamp', type: 'uint256' },
+              { indexed: false, internalType: 'string', name: 'category', type: 'string' },
+            ],
+            name: 'Registered',
+            type: 'event',
+          },
+          args: { user: address },
+          fromBlock: 4382432n, // Start from contract deployment block
+          toBlock: 'latest',
+        });
+
+        if (logs.length > 0) {
+          // Assuming the latest event is the most relevant registration
+          const latestLog = logs[logs.length - 1];
+          // Type cast latestLog.args to the defined interface
+          const eventArgs = latestLog.args as RegisteredEventArgs;
+
+          setRegistrationEvent({
+            user: eventArgs.user,
+            timestamp: Number(eventArgs.timestamp),
+            category: eventArgs.category,
+            transactionHash: latestLog.transactionHash,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching registration event:", error);
+      }
+    };
+
+    fetchRegistrationEvent();
+  }, [address, publicClient]);
 
   const handleStartCheckIn = async () => {
     if (!token) return;
@@ -589,7 +645,7 @@ const Dashboard = () => {
         title: "Blockchain Transaction Confirmed",
         description: "Cake removed from blockchain successfully",
       });
-      
+
       // Now delete from database
       const deleteFromDatabase = async () => {
         try {
@@ -625,7 +681,7 @@ const Dashboard = () => {
           setDeleting(false);
         }
       };
-      
+
       deleteFromDatabase();
     } else if (isDeleteConfirmed && deleteHash) {
       // If blockchain transaction is confirmed but no cake ID, just update UI
@@ -679,31 +735,31 @@ const Dashboard = () => {
 
   const steps = [
     { id: "registration", title: "Registration & Payment", description: "Registration and payment completed successfully", icon: <CheckCircle2 className="h-6 w-6 text-green-500" />, link: "#", status: "completed" },
-    { 
-      id: "cakeUpload", 
-      title: "Upload Cake Details", 
-      description: userProgress.cakeUpload.completed 
-        ? "Your cake has been successfully uploaded and assigned to a seat." 
-        : "Share photos, ingredients, and the story behind your cake creation", 
-      icon: <Upload className="h-6 w-6" />, 
-      link: "/upload-cake", 
-      status: userProgress.cakeUpload.status 
+    {
+      id: "cakeUpload",
+      title: "Upload Cake Details",
+      description: userProgress.cakeUpload.completed
+        ? "Your cake has been successfully uploaded and assigned to a seat."
+        : "Share photos, ingredients, and the story behind your cake creation",
+      icon: <Upload className="h-6 w-6" />,
+      link: "/upload-cake",
+      status: userProgress.cakeUpload.status
     },
-    { 
-      id: "checkin", 
-      title: "Event Check-in", 
-      description: "Check in instantly once you arrive — no page redirect", 
-      icon: <MapPin className="h-6 w-6" />, 
-      link: "#", 
-      status: userProgress.cakeUpload.completed ? userProgress.checkin.status : "locked" 
+    {
+      id: "checkin",
+      title: "Event Check-in",
+      description: "Check in instantly once you arrive — no page redirect",
+      icon: <MapPin className="h-6 w-6" />,
+      link: "#",
+      status: userProgress.cakeUpload.completed ? userProgress.checkin.status : "locked"
     },
-    { 
-      id: "voting", 
-      title: "Start Voting", 
-      description: "Vote for Most Beautiful and Most Delicious cakes", 
-      icon: <Vote className="h-6 w-6" />, 
-      link: "/voting", 
-      status: userProgress.checkin.completed ? userProgress.voting.status : "locked" 
+    {
+      id: "voting",
+      title: "Start Voting",
+      description: "Vote for Most Beautiful and Most Delicious cakes",
+      icon: <Vote className="h-6 w-6" />,
+      link: "/voting",
+      status: userProgress.checkin.completed ? userProgress.voting.status : "locked"
     },
     {
       id: "checkout",
@@ -752,27 +808,63 @@ const Dashboard = () => {
         {/* =========================================================== */}
         {/* [MARKER] PART 2: ADDED CARD TO DISPLAY FETCHED USER DATA  */}
         {/* =========================================================== */}
-        <div className="mb-12">
-          <Card className="border-0 shadow-soft">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Your Account Details</CardTitle>
-              <UserIcon className="h-6 w-6 text-primary" />
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Name:</span>
-                <span className="font-medium text-foreground">{user.firstName} {user.lastName}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Email:</span>
-                <span className="font-medium text-foreground">{user.email}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Category:</span>
-                <Badge variant="outline" className="font-semibold">{user.category}</Badge>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+          <div className="">
+            <Card className="border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardHeader className="px-6 py-4 flex flex-row items-center justify-between">
+                <CardTitle>Your Account Details</CardTitle>
+                <UserIcon className="h-6 w-6 text-primary" />
+              </CardHeader>
+              <CardContent className="p-6 space-y-2 text-base">
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Name:</span>
+                  <span className="font-medium text-foreground">{user.firstName} {user.lastName}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Email:</span>
+                  <span className="font-medium text-foreground">{user.email}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Category:</span>
+                  <Badge variant="outline" className="font-semibold">{user.category}</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Registration Event Details */}
+          {registrationEvent && (
+            <div className="">
+              <Card className="border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardHeader className="px-6 py-4 flex flex-row items-center justify-between">
+                  <CardTitle>Your Registration Event</CardTitle>
+                  <CheckCircle2 className="h-6 w-6 text-green-500" />
+                </CardHeader>
+                <CardContent className="p-6 space-y-2 text-base">
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Registered Wallet:</span>
+                    <span className="font-medium text-foreground">{registrationEvent.user.substring(0, 6)}...{registrationEvent.user.substring(registrationEvent.user.length - 4)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Registered At:</span>
+                    <span className="font-medium text-foreground">{new Date(registrationEvent.timestamp * 1000).toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Transaction Hash:</span>
+                    <a 
+                      href={`https://holesky.etherscan.io/tx/${registrationEvent.transactionHash}`}
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="font-medium text-primary hover:underline flex items-center gap-1"
+                    >
+                      {registrationEvent.transactionHash.substring(0, 6)}...{registrationEvent.transactionHash.substring(registrationEvent.transactionHash.length - 4)}
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
 
         {/* =========================================================== */}
@@ -840,8 +932,8 @@ const Dashboard = () => {
                     {userCake.imageUrl && (
                       <div className="aspect-square rounded-lg overflow-hidden bg-muted">
                         {userCake.fileType === 'image' ? (
-                          <img 
-                            src={`http://localhost:5001${userCake.imageUrl}`} 
+                          <img
+                            src={`http://localhost:5001${userCake.imageUrl}`}
                             alt={userCake.title}
                             className="w-full h-full object-cover"
                             onError={() => {
@@ -850,11 +942,11 @@ const Dashboard = () => {
                           />
                         ) : (
                           <div className="w-full h-full">
-                            <ErrorBoundary 
+                            <ErrorBoundary
                               modelUrl={`http://localhost:5001${userCake.imageUrl}`}
                               className="w-full h-full"
                             >
-                              <ModelViewer 
+                              <ModelViewer
                                 modelUrl={`http://localhost:5001${userCake.imageUrl}`}
                                 className="w-full h-full"
                               />
@@ -957,8 +1049,8 @@ const Dashboard = () => {
                       className="col-span-3"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      {editForm.fileType === 'image' 
-                        ? 'Upload a new image (JPG, PNG)' 
+                      {editForm.fileType === 'image'
+                        ? 'Upload a new image (JPG, PNG)'
                         : 'Upload a new 3D model (GLB file)'
                       }
                     </p>
@@ -1019,36 +1111,36 @@ const Dashboard = () => {
         <div className="mb-12">
           <Card className="border-0 shadow-soft">
             <CardHeader>
-          <CardTitle className="text-center text-2xl">Your Progress</CardTitle>
+              <CardTitle className="text-center text-2xl">Your Progress</CardTitle>
             </CardHeader>
             <CardContent>
-                             <div className="flex justify-center">
-                 <div className="w-full max-w-md bg-muted rounded-full h-3">
-                   <div 
-                     className="bg-gradient-primary h-3 rounded-full transition-smooth" 
-                     style={{ 
-                       width: `${(() => {
-                         let completedSteps = 1; // Registration is always completed
-                         if (userProgress.cakeUpload.completed) completedSteps++;
-                         if (userProgress.checkin.completed) completedSteps++;
-                         if (userProgress.voting.completed) completedSteps++;
-                         if (userProgress.checkout.completed) completedSteps++;
-                         return `${(completedSteps / 5) * 100}%`;
-                       })()}` 
-                     }}
-                   ></div>
-                 </div>
-               </div>
-               <p className="text-center text-muted-foreground mt-2">
-                 {(() => {
-                   let completedSteps = 1; // Registration is always completed
-                   if (userProgress.cakeUpload.completed) completedSteps++;
-                   if (userProgress.checkin.completed) completedSteps++;
-                   if (userProgress.voting.completed) completedSteps++;
-                   if (userProgress.checkout.completed) completedSteps++;
-                   return `${completedSteps} of 5`;
-                 })()} steps completed
-               </p>
+              <div className="flex justify-center">
+                <div className="w-full max-w-md bg-muted rounded-full h-3">
+                  <div
+                    className="bg-gradient-primary h-3 rounded-full transition-smooth"
+                    style={{
+                      width: `${(() => {
+                        let completedSteps = 1; // Registration is always completed
+                        if (userProgress.cakeUpload.completed) completedSteps++;
+                        if (userProgress.checkin.completed) completedSteps++;
+                        if (userProgress.voting.completed) completedSteps++;
+                        if (userProgress.checkout.completed) completedSteps++;
+                        return `${(completedSteps / 5) * 100}%`;
+                      })()}`
+                    }}
+                  ></div>
+                </div>
+              </div>
+              <p className="text-center text-muted-foreground mt-2">
+                {(() => {
+                  let completedSteps = 1; // Registration is always completed
+                  if (userProgress.cakeUpload.completed) completedSteps++;
+                  if (userProgress.checkin.completed) completedSteps++;
+                  if (userProgress.voting.completed) completedSteps++;
+                  if (userProgress.checkout.completed) completedSteps++;
+                  return `${completedSteps} of 5`;
+                })()} steps completed
+              </p>
             </CardContent>
           </Card>
         </div>

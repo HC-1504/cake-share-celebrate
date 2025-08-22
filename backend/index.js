@@ -139,6 +139,25 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
+app.post('/api/check-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const user = await User.findOne({ where: { email } });
+    if (user) {
+      return res.json({ exists: true });
+    } else {
+      return res.json({ exists: false });
+    }
+  } catch (error) {
+    console.error('Error checking email:', error);
+    res.status(500).json({ error: 'Server error while checking email' });
+  }
+});
+
 // [MARKER] Get Current User's Dashboard Data
 app.get('/api/me', auth, async (req, res) => {
   try {

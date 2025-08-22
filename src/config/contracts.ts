@@ -2,6 +2,19 @@ import { holesky } from 'wagmi/chains'
 
 export const eventRegistrationABI = [
 	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "category",
+				"type": "string"
+			}
+		],
+		"name": "register",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"stateMutability": "nonpayable",
 		"type": "constructor"
@@ -30,6 +43,53 @@ export const eventRegistrationABI = [
 		],
 		"name": "Registered",
 		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			}
+		],
+		"name": "resetRegistration",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "category",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "fee",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "duration",
+				"type": "uint256"
+			}
+		],
+		"name": "setCategoryFee",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "withdraw",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"stateMutability": "payable",
+		"type": "receive"
 	},
 	{
 		"inputs": [
@@ -195,71 +255,11 @@ export const eventRegistrationABI = [
 		],
 		"stateMutability": "view",
 		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "category",
-				"type": "string"
-			}
-		],
-		"name": "register",
-		"outputs": [],
-		"stateMutability": "payable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			}
-		],
-		"name": "resetRegistration",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "category",
-				"type": "string"
-			},
-			{
-				"internalType": "uint256",
-				"name": "fee",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "duration",
-				"type": "uint256"
-			}
-		],
-		"name": "setCategoryFee",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "withdraw",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"stateMutability": "payable",
-		"type": "receive"
 	}
 ] as const
 
 export const eventRegistrationAddress = {
-    [holesky.id]: '0x42271CF136Bf7F0F2d2a9FeB3Af1579E1909EB96' as `0x${string}`
+	[holesky.id]: '0xC467AB49124EdEd736e3FeDe5CA17C6EBAceBA64' as `0x${string}`
 }
 
 export const cakeUploadABI = [
@@ -788,10 +788,10 @@ export const cakeUploadABI = [
 		"stateMutability": "view",
 		"type": "function"
 	}
-]as const
+] as const
 
 export const cakeUploadAddress = {
-    [holesky.id]: '0xdd243E80Ed100f67343D5521F0c39F924d0ab573' as `0x${string}`
+	[holesky.id]: '0xdd243E80Ed100f67343D5521F0c39F924d0ab573' as `0x${string}`
 }
 
 export const cakeVotingABI = [
@@ -938,6 +938,6 @@ export const cakeVotingABI = [
 ] as const
 
 export const cakeVotingAddress = {
-  [holesky.id]: '0x52D7B119456cf30844a8Caad3d9553eDcC092359' as `0x${string}`, // ✅ Successfully deployed contract
+	[holesky.id]: '0x52D7B119456cf30844a8Caad3d9553eDcC092359' as `0x${string}`, // ✅ Successfully deployed contract
 }
 
