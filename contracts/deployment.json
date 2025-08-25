@@ -1,3 +1,4 @@
+
 {
   "networks": {
     "holesky": {
@@ -26,14 +27,6 @@
           "deploymentDate": "2025-01-XX",
           "gasUsed": 0,
           "etherscanUrl": "https://holesky.etherscan.io/address/0x..."
-        },
-        "CakeCheckin": {
-          "address": "0x...",
-          "deploymentTxHash": "0x...", 
-          "deploymentBlock": 0, 
-          "deploymentDate": "2025-01-XX",
-          "gasUsed": 0,
-          "etherscanUrl": "https://holesky.etherscan.io/address/0x..."
         }
       },
       "deployer": "0x..."
@@ -42,7 +35,7 @@
   "contractInfo": {
     "platform": "Cake Share & Celebrate",
     "version": "1.0.0",
-    "description": "Complete blockchain-based cake competition platform with interconnected smart contracts",
+    "description": "Complete blockchain-based cake competition platform with three interconnected smart contracts",
     "contracts": {
       "CakePicnic": {
         "purpose": "Event registration and payment processing",
@@ -79,18 +72,8 @@
           "Vote verification functions",
           "Admin vote reset capabilities"
         ]
-      },
-      "CakeCheckin": {
-        "purpose": "Check-in and check-out system for event participants",
-        "features": [
-          "Blockchain-based attendance tracking",
-          "Secure check-in using wallet address",
-          "One-time check-in enforcement",
-          "Check-out functionality",
-          "On-chain timestamps for auditability"
-        ]
       }
     },
-    "integration": "All contracts work together: registration, cake uploads, voting, and now attendance tracking via check-in/out"
+    "integration": "All three contracts work together to provide a complete cake competition platform"
   }
 }
