@@ -40,11 +40,16 @@ The platform consists of three interconnected smart contracts:
    - [View on Etherscan](https://holesky.etherscan.io/address/0x...)
 3. **CakeVoting**: `0x...` (Add your deployed address)
    - [View on Etherscan](https://holesky.etherscan.io/address/0x...)
+3. **CakeCheckin**: `0x...` (Add your deployed address)
+   - [View on Etherscan](https://holesky.etherscan.io/address/0x...)
+
+    
 
 #### Solidity Versions
 - **CakePicnic**: ^0.8.19
 - **CakeUpload**: ^0.8.19
 - **CakeVoting**: ^0.8.20
+- **CakeCheckin**: ^0.8.20
 
 ## 🔧 Contract Functions
 
