@@ -3,32 +3,39 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/App";
 import { Navigate, Link } from "react-router-dom";
-import { useAccount, useReadContract } from 'wagmi';
-import { cakeVotingABI, cakeVotingAddress } from '@/config/contracts';
-import { holesky } from 'wagmi/chains';
+import { useAccount, useReadContract, useConnect } from "wagmi";
+import { MetaMaskConnector } from "wagmi/connectors/metaMask";
+import { cakeVotingABI, cakeVotingAddress } from "@/config/contracts";
+import { holesky } from "wagmi/chains";
 
 const Checkin = () => {
   const { isAuthenticated } = useAuth();
   const { address } = useAccount();
+  const { connectAsync } = useConnect({
+    connector: new MetaMaskConnector(),
+  });
+
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  const [status, setStatus] = useState<'none' | 'in' | 'out'>('none');
+  const [status, setStatus] = useState<"none" | "in" | "out">("none");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [blockchainLoading, setBlockchainLoading] = useState(true);
   const [votingStatus, setVotingStatus] = useState({
     beautiful: false,
     delicious: false,
-    both: false
+    both: false,
   });
 
-
   // Check blockchain voting status for beautiful category
-  const { data: hasVotedBeautifulBlockchain, isLoading: isLoadingBeautiful } = useReadContract({
+  const {
+    data: hasVotedBeautifulBlockchain,
+    isLoading: isLoadingBeautiful,
+  } = useReadContract({
     address: cakeVotingAddress[holesky.id],
     abi: cakeVotingABI,
-    functionName: 'hasVotedInCategory',
-    args: address ? [address, 'beautiful'] : undefined,
+    functionName: "hasVotedInCategory",
+    args: address ? [address, "beautiful"] : undefined,
     chainId: holesky.id,
     query: {
       enabled: !!address,
@@ -36,11 +43,14 @@ const Checkin = () => {
   });
 
   // Check blockchain voting status for delicious category
-  const { data: hasVotedDeliciousBlockchain, isLoading: isLoadingDelicious } = useReadContract({
+  const {
+    data: hasVotedDeliciousBlockchain,
+    isLoading: isLoadingDelicious,
+  } = useReadContract({
     address: cakeVotingAddress[holesky.id],
     abi: cakeVotingABI,
-    functionName: 'hasVotedInCategory',
-    args: address ? [address, 'delicious'] : undefined,
+    functionName: "hasVotedInCategory",
+    args: address ? [address, "delicious"] : undefined,
     chainId: holesky.id,
     query: {
       enabled: !!address,
@@ -60,13 +70,15 @@ const Checkin = () => {
           setStatus(data.status);
 
           // Combine database voting status with blockchain status
-          const beautifulVoted = data.voting?.beautiful || hasVotedBeautifulBlockchain || false;
-          const deliciousVoted = data.voting?.delicious || hasVotedDeliciousBlockchain || false;
+          const beautifulVoted =
+            data.voting?.beautiful || hasVotedBeautifulBlockchain || false;
+          const deliciousVoted =
+            data.voting?.delicious || hasVotedDeliciousBlockchain || false;
 
           setVotingStatus({
             beautiful: beautifulVoted,
             delicious: deliciousVoted,
-            both: beautifulVoted && deliciousVoted
+            both: beautifulVoted && deliciousVoted,
           });
         }
       } catch (err) {
@@ -96,15 +108,20 @@ const Checkin = () => {
 
   // Update voting status when blockchain data changes
   useEffect(() => {
-    if (hasVotedBeautifulBlockchain !== undefined || hasVotedDeliciousBlockchain !== undefined) {
-      setVotingStatus(prev => {
-        const beautifulVoted = prev.beautiful || hasVotedBeautifulBlockchain || false;
-        const deliciousVoted = prev.delicious || hasVotedDeliciousBlockchain || false;
+    if (
+      hasVotedBeautifulBlockchain !== undefined ||
+      hasVotedDeliciousBlockchain !== undefined
+    ) {
+      setVotingStatus((prev) => {
+        const beautifulVoted =
+          prev.beautiful || hasVotedBeautifulBlockchain || false;
+        const deliciousVoted =
+          prev.delicious || hasVotedDeliciousBlockchain || false;
 
         return {
           beautiful: beautifulVoted,
           delicious: deliciousVoted,
-          both: beautifulVoted && deliciousVoted
+          both: beautifulVoted && deliciousVoted,
         };
       });
     }
@@ -113,6 +130,11 @@ const Checkin = () => {
   const handleCheckin = async () => {
     setError("");
     try {
+      // 🔹 Ensure wallet is connected before check-in
+      if (!address) {
+        await connectAsync(); // Opens MetaMask
+      }
+
       const token = localStorage.getItem("auth_token");
       const res = await fetch("http://localhost:5001/api/checkin", {
         method: "POST",
@@ -122,11 +144,12 @@ const Checkin = () => {
         const errorData = await res.json();
         throw new Error(errorData.error || "Failed to check in");
       }
-      setStatus('in');
+      setStatus("in");
     } catch (err: any) {
       setError(err.message || "Failed to check in");
     }
   };
+
   const handleCheckout = async () => {
     setError("");
 
@@ -146,7 +169,7 @@ const Checkin = () => {
         const errorData = await res.json();
         throw new Error(errorData.error || "Failed to check out");
       }
-      setStatus('out');
+      setStatus("out");
     } catch (err: any) {
       setError(err.message || "Failed to check out");
     }
@@ -174,44 +197,84 @@ const Checkin = () => {
               <div className="text-muted-foreground">Loading status...</div>
             ) : (
               <>
-                {status === 'none' && <div className="text-muted-foreground">You have not checked in yet.</div>}
-                {status === 'in' && <div className="text-green-600 font-semibold">✅ You are checked in!</div>}
-                {status === 'out' && <div className="text-blue-600 font-semibold">👋 You have checked out.</div>}
+                {status === "none" && (
+                  <div className="text-muted-foreground">
+                    You have not checked in yet.
+                  </div>
+                )}
+                {status === "in" && (
+                  <div className="text-green-600 font-semibold">
+                    ✅ You are checked in!
+                  </div>
+                )}
+                {status === "out" && (
+                  <div className="text-blue-600 font-semibold">
+                    👋 You have checked out.
+                  </div>
+                )}
               </>
             )}
-            {error && <div className="text-red-600 font-semibold mt-2">{error}</div>}
+            {error && (
+              <div className="text-red-600 font-semibold mt-2">{error}</div>
+            )}
           </div>
 
           {/* Voting Status Display */}
-          {!loading && status === 'in' && (
+          {!loading && status === "in" && (
             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-semibold text-gray-800 mb-3">🗳️ Voting Requirements for Check-out</h3>
+              <h3 className="font-semibold text-gray-800 mb-3">
+                🗳️ Voting Requirements for Check-out
+              </h3>
               <div className="space-y-2 text-sm">
-                <div className={`flex items-center gap-2 ${votingStatus.beautiful ? 'text-green-600' : 'text-orange-600'}`}>
-                  {votingStatus.beautiful ? '✅' : '⏳'} Most Beautiful Cake
-                  {votingStatus.beautiful ? ' - Voted ✓' : ' - Not voted yet'}
+                <div
+                  className={`flex items-center gap-2 ${
+                    votingStatus.beautiful
+                      ? "text-green-600"
+                      : "text-orange-600"
+                  }`}
+                >
+                  {votingStatus.beautiful ? "✅" : "⏳"} Most Beautiful Cake
+                  {votingStatus.beautiful ? " - Voted ✓" : " - Not voted yet"}
                   {hasVotedBeautifulBlockchain && (
-                    <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">Blockchain ✓</span>
+                    <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">
+                      Blockchain ✓
+                    </span>
                   )}
                 </div>
-                <div className={`flex items-center gap-2 ${votingStatus.delicious ? 'text-green-600' : 'text-orange-600'}`}>
-                  {votingStatus.delicious ? '✅' : '⏳'} Most Delicious Cake
-                  {votingStatus.delicious ? ' - Voted ✓' : ' - Not voted yet'}
+                <div
+                  className={`flex items-center gap-2 ${
+                    votingStatus.delicious
+                      ? "text-green-600"
+                      : "text-orange-600"
+                  }`}
+                >
+                  {votingStatus.delicious ? "✅" : "⏳"} Most Delicious Cake
+                  {votingStatus.delicious ? " - Voted ✓" : " - Not voted yet"}
                   {hasVotedDeliciousBlockchain && (
-                    <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">Blockchain ✓</span>
+                    <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">
+                      Blockchain ✓
+                    </span>
                   )}
                 </div>
                 {!votingStatus.both && (
                   <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">
                     <p className="text-xs">
-                      💡 You must vote for both categories before you can check out.
-                      <Link to="/voting" className="underline ml-1 hover:text-yellow-900">Go to voting page</Link>
+                      💡 You must vote for both categories before you can check
+                      out.
+                      <Link
+                        to="/voting"
+                        className="underline ml-1 hover:text-yellow-900"
+                      >
+                        Go to voting page
+                      </Link>
                     </p>
                   </div>
                 )}
                 {votingStatus.both && (
                   <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded text-green-800">
-                    <p className="text-xs">🎉 All voting complete! You can now check out.</p>
+                    <p className="text-xs">
+                      🎉 All voting complete! You can now check out.
+                    </p>
                   </div>
                 )}
 
@@ -229,43 +292,58 @@ const Checkin = () => {
               </div>
             </div>
           )}
-          <div className="flex flex-col gap-4">
-            <Button
-              variant="cake"
-              className="w-full"
-              onClick={handleCheckin}
-              disabled={loading || status === 'in' || status === 'out'}
-            >
-              {status === 'in' ? '✅ Already Checked In' : status === 'out' ? '✅ Event Complete' : '🚪 Check In'}
-            </Button>
 
-            {/* Show voting button if checked in but haven't voted for both */}
-            {status === 'in' && !votingStatus.both && (
+          {/* ✅ Your unchanged code starts here */}
+          <div className="flex flex-col gap-4">
+            {!address ? (
+              // Show connect wallet button if no MetaMask connection
               <Button variant="outline" className="w-full" asChild>
-                <Link to="/voting">
-                  🗳️ Go Vote Now
+                <Link to="/connect-wallet">
+                  🦊 Connect MetaMask to Check In
                 </Link>
               </Button>
-            )}
+            ) : (
+              <>
+                <Button
+                  variant="cake"
+                  className="w-full"
+                  onClick={handleCheckin}
+                  disabled={loading || status === "in" || status === "out"}
+                >
+                  {status === "in"
+                    ? "✅ Already Checked In"
+                    : status === "out"
+                    ? "✅ Event Complete"
+                    : "🚪 Check In"}
+                </Button>
 
-            <Button
-              variant="soft"
-              className="w-full"
-              onClick={handleCheckout}
-              disabled={loading || status !== 'in' || !votingStatus.both}
-            >
-              {status === 'out'
-                ? '👋 Already Checked Out'
-                : !votingStatus.both && status === 'in'
-                ? '🗳️ Complete Voting First'
-                : '🚪 Check Out'
-              }
-            </Button>
+                {/* Show voting button if checked in but haven't voted for both */}
+                {status === "in" && !votingStatus.both && (
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link to="/voting">🗳️ Go Vote Now</Link>
+                  </Button>
+                )}
+
+                <Button
+                  variant="soft"
+                  className="w-full"
+                  onClick={handleCheckout}
+                  disabled={loading || status !== "in" || !votingStatus.both}
+                >
+                  {status === "out"
+                    ? "👋 Already Checked Out"
+                    : !votingStatus.both && status === "in"
+                    ? "🗳️ Complete Voting First"
+                    : "🚪 Check Out"}
+                </Button>
+              </>
+            )}
           </div>
+          {/* ✅ Your unchanged code ends here */}
         </CardContent>
       </Card>
     </div>
   );
 };
 
-export default Checkin; 
+export default Checkin;
