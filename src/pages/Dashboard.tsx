@@ -750,7 +750,7 @@ const Dashboard = () => {
       title: "Event Check-in",
       description: "Check in instantly once you arrive — no page redirect",
       icon: <MapPin className="h-6 w-6" />,
-      link: "/checkin",
+      link: "#",
       status: userProgress.cakeUpload.completed ? userProgress.checkin.status : "locked"
     },
     {
@@ -766,7 +766,7 @@ const Dashboard = () => {
       title: "Event Check-out",
       description: "Check out instantly after voting — no redirect",
       icon: <CheckCircle className="h-6 w-6" />,
-      link: "/checkin",
+      link: "#",
       status: userProgress.voting.completed ? userProgress.checkout.status : "locked",
     },
   ];
