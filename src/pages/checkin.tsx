@@ -101,6 +101,7 @@ const Checkin = () => {
 
       setStatus("in");
     } catch (err: any) {
+      console.error(err);
       setError(err.message || "Failed to check in");
     }
   };
@@ -135,13 +136,9 @@ const Checkin = () => {
 
       setStatus("out");
     } catch (err: any) {
+      console.error(err);
       setError(err.message || "Failed to check out");
     }
-  };
-
-  // --- Refresh ---
-  const handleRefreshStatus = () => {
-    window.location.reload();
   };
 
   return (
@@ -172,41 +169,6 @@ const Checkin = () => {
             )}
             {error && <div className="text-red-600 font-semibold mt-2">{error}</div>}
           </div>
-
-          {/* Voting requirements */}
-          {!loading && status === "in" && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-semibold text-gray-800 mb-3">🗳️ Voting Requirements for Check-out</h3>
-              <div className="space-y-2 text-sm">
-                <div className={`flex items-center gap-2 ${votingStatus.beautiful ? "text-green-600" : "text-orange-600"}`}>
-                  {votingStatus.beautiful ? "✅" : "⏳"} Most Beautiful Cake
-                </div>
-                <div className={`flex items-center gap-2 ${votingStatus.delicious ? "text-green-600" : "text-orange-600"}`}>
-                  {votingStatus.delicious ? "✅" : "⏳"} Most Delicious Cake
-                </div>
-
-                {!votingStatus.both && (
-                  <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">
-                    <p className="text-xs">
-                      💡 You must vote for both categories before you can check out.
-                      <Link to="/voting" className="underline ml-1 hover:text-yellow-900">Go to voting page</Link>
-                    </p>
-                  </div>
-                )}
-                {votingStatus.both && (
-                  <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded text-green-800">
-                    <p className="text-xs">🎉 All voting complete! You can now check out.</p>
-                  </div>
-                )}
-
-                <div className="mt-3 text-center">
-                  <Button variant="outline" size="sm" onClick={handleRefreshStatus} className="text-xs">
-                    🔄 Refresh Status
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Action buttons */}
           <div className="flex flex-col gap-4">
