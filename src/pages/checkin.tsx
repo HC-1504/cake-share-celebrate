@@ -176,13 +176,11 @@ const handleCheckout = async () => {
 
   try {
     // Step 1: Trigger MetaMask
-    const tx = await writeContractAsync({
-      address: cakeCheckInAddress[holesky.id],
-      abi: cakeCheckInABI,
+    const txHash = await writeContractAsync({
+      address: checkInOutAddress[holesky.id],
+      abi: checkInOutABI,
       functionName: "checkOut",
     });
-
-    const txHash = tx;
 
     // Step 2: Save in backend
     const token = localStorage.getItem("auth_token");
