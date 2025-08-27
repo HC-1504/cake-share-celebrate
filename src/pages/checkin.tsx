@@ -102,73 +102,75 @@ const Checkin = () => {
     }
   }, [hasVotedBeautifulBlockchain, hasVotedDeliciousBlockchain]);
 
-  // --- Checkin (MetaMask + Backend) ---
-  const handleCheckin = async () => {
-    setError("");
-    try {
-      const txHash = await writeContractAsync({
-        address: checkInOutAddress[holesky.id],
-        abi: checkInOutABI,
-        functionName: "checkIn",
-      });
+// --- Checkin (MetaMask + Backend) ---
+const handleCheckin = async () => {
+  setError("");
+  try {
+    const txHash = await writeContractAsync({
+      address: checkInOutAddress[holesky.id],
+      abi: checkInOutABI,
+      functionName: "checkIn",
+      account: address,   // 👈 force MetaMask to use connected wallet
+    });
 
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch("http://localhost:5001/api/checkin", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ wallet: address, txHash }),
-      });
+    const token = localStorage.getItem("auth_token");
+    const res = await fetch("http://localhost:5001/api/checkin", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ wallet: address, txHash }),
+    });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to check in");
-      }
-
-      setStatus("in");
-    } catch (err: any) {
-      setError(err.message || "Failed to check in");
-    }
-  };
-
-  // --- Checkout (MetaMask + Backend) ---
-  const handleCheckout = async () => {
-    setError("");
-
-    if (!votingStatus?.both) {
-      setError("Please complete voting for both categories before checking out");
-      return;
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Failed to check in");
     }
 
-    try {
-      const txHash = await writeContractAsync({
-        address: checkInOutAddress[holesky.id],
-        abi: checkInOutABI,
-        functionName: "checkOut",
-      });
+    setStatus("in");
+  } catch (err: any) {
+    setError(err.message || "Failed to check in");
+  }
+};
 
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch("http://localhost:5001/api/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ wallet: address, txHash }),
-      });
+// --- Checkout (MetaMask + Backend) ---
+const handleCheckout = async () => {
+  setError("");
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to check out");
-      }
+  if (!votingStatus?.both) {
+    setError("Please complete voting for both categories before checking out");
+    return;
+  }
 
-      setStatus("out");
-    } catch (err: any) {
-      setError(err.message || "Failed to check out");
+  try {
+    const txHash = await writeContractAsync({
+      address: checkInOutAddress[holesky.id],
+      abi: checkInOutABI,
+      functionName: "checkOut",
+      account: address,   // 👈 force MetaMask to use connected wallet
+    });
+
+    const token = localStorage.getItem("auth_token");
+    const res = await fetch("http://localhost:5001/api/checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ wallet: address, txHash }),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Failed to check out");
     }
-  };
+
+    setStatus("out");
+  } catch (err: any) {
+    setError(err.message || "Failed to check out");
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-background">
