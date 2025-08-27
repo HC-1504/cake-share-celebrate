@@ -1,4 +1,5 @@
-
+import { useWriteContract } from 'wagmi';
+import { cakeCheckInABI, cakeCheckInAddress } from '@/config/contracts';
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -128,30 +129,78 @@ const Checkin = () => {
       setError(err.message || "Failed to check in");
     }
   };
-  const handleCheckout = async () => {
-    setError("");
+ const { writeContractAsync } = useWriteContract();
 
-    // Check if both votes are completed (blockchain or database)
-    if (!votingStatus.both) {
-      setError("Please complete voting for both categories before checking out");
-      return;
+const handleCheckin = async () => {
+  setError("");
+  try {
+    // Step 1: Call blockchain (MetaMask popup)
+    const txHash = await writeContractAsync({
+      address: cakeCheckInAddress[holesky.id],
+      abi: cakeCheckInABI,
+      functionName: 'checkIn',
+    });
+
+    // Step 2: Save in backend DB
+    const token = localStorage.getItem("auth_token");
+    const res = await fetch("http://localhost:5001/api/checkin", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ wallet: address, txHash })
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Failed to check in");
     }
 
-    try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch("http://localhost:5001/api/checkout", {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to check out");
-      }
-      setStatus('out');
-    } catch (err: any) {
-      setError(err.message || "Failed to check out");
+    setStatus('in');
+  } catch (err: any) {
+    setError(err.message || "Failed to check in");
+  }
+};
+
+const handleCheckout = async () => {
+  setError("");
+
+  if (!votingStatus.both) {
+    setError("Please complete voting for both categories before checking out");
+    return;
+  }
+
+  try {
+    // Step 1: Call blockchain
+    const txHash = await writeContractAsync({
+      address: cakeCheckInAddress[holesky.id],
+      abi: cakeCheckInABI,
+      functionName: 'checkOut',
+    });
+
+    // Step 2: Save in backend DB
+    const token = localStorage.getItem("auth_token");
+    const res = await fetch("http://localhost:5001/api/checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ wallet: address, txHash })
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Failed to check out");
     }
-  };
+
+    setStatus('out');
+  } catch (err: any) {
+    setError(err.message || "Failed to check out");
+  }
+};
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-background">
