@@ -40,55 +40,53 @@ const UploadCake = () => {
   });
 
   // Handle blockchain transaction results
- useEffect(() => {
-  if (isConfirmed && hash) {
-    console.log("Blockchain transaction confirmed:", hash);
-    toast.success("Cake uploaded to blockchain successfully!");
-    
-    // Save cake to database after blockchain confirmation
-    const saveToDatabase = async () => {
-      try {
-        const token = localStorage.getItem("auth_token");
-        const saveRes = await fetch("/api/cakes/save-to-db", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            title: form.title,
-            description: form.description,
-            imageUrl: uploadedFileUrl, // uploaded file URL
-            fileType: form.fileType,
-            tableNumber: parseInt(form.tableNumber),
-            seatNumber: parseInt(form.seatNumber),
-            story: form.story,
-            blockchainHash: hash,
-          }),
-        });
-        
-        if (!saveRes.ok) {
-          const errorData = await saveRes.json();
-          throw new Error(`Failed to save to database: ${errorData.error || 'Unknown error'}`);
+  useEffect(() => {
+    if (isConfirmed && hash) {
+      console.log("Blockchain transaction confirmed:", hash);
+      toast.success("Cake uploaded to blockchain successfully!");
+      
+      // Now save to database after blockchain confirmation
+      const saveToDatabase = async () => {
+        try {
+          const token = localStorage.getItem("auth_token");
+          const saveRes = await fetch("/api/cakes/save-to-db", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              title: form.title,
+              description: form.description,
+              imageUrl: uploadedFileUrl, // This will be set from the file upload step
+              fileType: form.fileType,
+              tableNumber: parseInt(form.tableNumber),
+              seatNumber: parseInt(form.seatNumber),
+              story: form.story,
+              blockchainHash: hash,
+            }),
+          });
+          
+          if (!saveRes.ok) {
+            const errorData = await saveRes.json();
+            throw new Error(`Failed to save to database: ${errorData.error || 'Unknown error'}`);
+          }
+          
+          setSuccess(true);
+          setUploadingToBlockchain(false);
+          toast.success("Cake uploaded successfully to both blockchain and database!");
+          
+        } catch (error: any) {
+          console.error('Database save error:', error);
+          toast.error(`Failed to save to database: ${error.message}`);
+          setError(error.message);
+          setUploadingToBlockchain(false);
         }
-        
-        setSuccess(true);
-        setUploadingToBlockchain(false);
-        toast.success("Cake uploaded successfully to both blockchain and database!");
-        
-        // ✅ Automatic check-in removed
-        // If there was a line like `await fetch("/api/check-in")` or `checkIn()`, it should be deleted/commented
-      } catch (error: any) {
-        console.error('Database save error:', error);
-        toast.error(`Failed to save to database: ${error.message}`);
-        setError(error.message);
-        setUploadingToBlockchain(false);
-      }
-    };
-    
-    saveToDatabase();
-  }
-}, [isConfirmed, hash, uploadedFileUrl]);
+      };
+      
+      saveToDatabase();
+    }
+     }, [isConfirmed, hash, uploadedFileUrl]);
 
   // Handle contract errors
   useEffect(() => {
