@@ -748,7 +748,7 @@ const Dashboard = () => {
     {
       id: "checkin",
       title: "Event Check-in",
-      description: description: "HELLO TEST 🔥",
+      description: "HELLO TEST 🔥",
       icon: <MapPin className="h-6 w-6" />,
       link: "/checkin",
       status: userProgress.cakeUpload.completed ? userProgress.checkin.status : "locked"
