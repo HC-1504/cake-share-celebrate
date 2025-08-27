@@ -1,5 +1,5 @@
-import { useWriteContract } from 'wagmi';
-import { cakeCheckInABI, cakeCheckInAddress } from '@/config/contracts';
+import { checkInOutABI, checkInOutAddress } from "@/config/contracts";
+import { useWriteContract } from "wagmi";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
