@@ -1170,9 +1170,9 @@ const Dashboard = () => {
                   onClick={() => {
                     if (step.status !== 'pending') return;
                     if (step.id === 'checkin') {
-                      handleStartCheckIn();
+                      handleCheckIn();
                     } else if (step.id === 'checkout') {
-                      handleStartCheckOut();
+                      handleCheckOut();
                     }
                   }}
                   asChild={step.status === "pending" && (step.id === 'cakeUpload' || step.id === 'voting')}
