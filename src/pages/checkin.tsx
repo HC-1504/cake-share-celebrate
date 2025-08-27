@@ -129,27 +129,30 @@ const Checkin = () => {
       setError(err.message || "Failed to check in");
     }
   };
- const { writeContractAsync } = useWriteContract();
+const { writeContractAsync } = useWriteContract();
+const { address } = useAccount();
 
 const handleCheckin = async () => {
   setError("");
   try {
-    // Step 1: Call blockchain (MetaMask popup)
-    const txHash = await writeContractAsync({
+    // Step 1: Trigger MetaMask
+    const tx = await writeContractAsync({
       address: cakeCheckInAddress[holesky.id],
       abi: cakeCheckInABI,
-      functionName: 'checkIn',
+      functionName: "checkIn",
     });
 
-    // Step 2: Save in backend DB
+    const txHash = tx; // in wagmi v1 this is already the hash
+
+    // Step 2: Save in backend
     const token = localStorage.getItem("auth_token");
     const res = await fetch("http://localhost:5001/api/checkin", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ wallet: address, txHash })
+      body: JSON.stringify({ wallet: address, txHash }),
     });
 
     if (!res.ok) {
@@ -157,7 +160,7 @@ const handleCheckin = async () => {
       throw new Error(errorData.error || "Failed to check in");
     }
 
-    setStatus('in');
+    setStatus("in");
   } catch (err: any) {
     setError(err.message || "Failed to check in");
   }
@@ -166,28 +169,30 @@ const handleCheckin = async () => {
 const handleCheckout = async () => {
   setError("");
 
-  if (!votingStatus.both) {
+  if (!votingStatus?.both) {
     setError("Please complete voting for both categories before checking out");
     return;
   }
 
   try {
-    // Step 1: Call blockchain
-    const txHash = await writeContractAsync({
+    // Step 1: Trigger MetaMask
+    const tx = await writeContractAsync({
       address: cakeCheckInAddress[holesky.id],
       abi: cakeCheckInABI,
-      functionName: 'checkOut',
+      functionName: "checkOut",
     });
 
-    // Step 2: Save in backend DB
+    const txHash = tx;
+
+    // Step 2: Save in backend
     const token = localStorage.getItem("auth_token");
     const res = await fetch("http://localhost:5001/api/checkout", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ wallet: address, txHash })
+      body: JSON.stringify({ wallet: address, txHash }),
     });
 
     if (!res.ok) {
@@ -195,7 +200,7 @@ const handleCheckout = async () => {
       throw new Error(errorData.error || "Failed to check out");
     }
 
-    setStatus('out');
+    setStatus("out");
   } catch (err: any) {
     setError(err.message || "Failed to check out");
   }
