@@ -941,3 +941,59 @@ export const cakeVotingAddress = {
 	[holesky.id]: '0x52D7B119456cf30844a8Caad3d9553eDcC092359' as `0x${string}`, // ✅ Successfully deployed contract
 }
 
+
+
+export const checkInOutABI = [
+  {
+    "inputs": [],
+    "name": "checkIn",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "checkOut",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "getStatus",
+    "outputs": [
+      { "internalType": "bool", "name": "inStatus", "type": "bool" },
+      { "internalType": "bool", "name": "outStatus", "type": "bool" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "user", "type": "address" }
+    ],
+    "name": "CheckedIn",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "user", "type": "address" }
+    ],
+    "name": "CheckedOut",
+    "type": "event"
+  }
+] as const;
+
+export const checkInOutAddress = {
+  [holesky.id]: "0xff281e2a4e1BFf333BC86752fbF82603d7Ff9afe" as `0x${string}`,
+};
+
+
