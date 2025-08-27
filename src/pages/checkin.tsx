@@ -248,18 +248,14 @@ const Checkin = () => {
               </Button>
             )}
 
-            <Button
-              variant="soft"
-              className="w-full"
-              onClick={handleCheckout}
-              disabled={loading || status !== "in" || !votingStatus.both}
-            >
-              {status === "out"
-                ? "👋 Already Checked Out"
-                : !votingStatus.both && status === "in"
-                ? "🗳️ Complete Voting First"
-                : "🚪 Check Out"}
-            </Button>
+<Button
+  variant="soft"
+  className="w-full"
+  onClick={handleCheckout}
+>
+  🚪 Force Check Out
+</Button>
+
           </div>
         </CardContent>
       </Card>
