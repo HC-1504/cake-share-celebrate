@@ -756,7 +756,7 @@ const Dashboard = () => {
   status: userProgress.cakeUpload.completed 
             ? userProgress.checkin.status   // this should only change after blockchain tx
             : "locked"
-}
+},
 
     {
       id: "voting",
