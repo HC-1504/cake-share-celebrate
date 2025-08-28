@@ -77,8 +77,8 @@ const Checkin = () => {
     });
   }, [hasVotedBeautifulBlockchain, hasVotedDeliciousBlockchain]);
 
-  // --- Checkin ---
- const handleCheckin = async () => {
+ // --- Checkin ---
+const handleCheckin = async () => {
   setError("");
   if (!address) {
     setError("Please connect your wallet first.");
@@ -89,50 +89,50 @@ const Checkin = () => {
       address: checkInOutAddress[holesky.id],
       abi: checkInOutABI,
       functionName: "checkIn",
-      account: address,
-      chainId: holesky.id, // force Holesky
+      chainId: holesky.id,
     });
     console.log("✅ Check-in TX:", tx);
+    setStatus("in");
   } catch (err: any) {
     console.error("❌ Check-in error:", err);
-    setError(err.message || "Failed to check in");
+    setError(err.shortMessage || err.message || "Failed to check in");
   }
 };
 
-  // --- Checkout ---
-  const handleCheckout = async () => {
-    setError("");
+// --- Checkout ---
+const handleCheckout = async () => {
+  setError("");
+  if (!votingStatus.both) {
+    setError("Please complete voting for both categories before checking out");
+    return;
+  }
+  try {
+    const tx = await writeContractAsync({
+      address: checkInOutAddress[holesky.id],
+      abi: checkInOutABI,
+      functionName: "checkOut",
+      chainId: holesky.id,
+    });
+    console.log("✅ Check-out TX:", tx);
 
-    if (!votingStatus.both) {
-      setError("Please complete voting for both categories before checking out");
-      return;
-    }
+    // also sync DB
+    const token = localStorage.getItem("auth_token");
+    await fetch("http://localhost:5001/api/checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ wallet: address, txHash: tx.hash }),
+    });
 
-    try {
-      const tx = await writeContractAsync({
-        address: checkInOutAddress[holesky.id],
-        abi: checkInOutABI,
-        functionName: "checkOut",
-        account: address,
-      });
-      console.log("✅ Check-out TX:", tx);
+    setStatus("out");
+  } catch (err: any) {
+    console.error("❌ Check-out error:", err);
+    setError(err.shortMessage || err.message || "Failed to check out");
+  }
+};
 
-      const token = localStorage.getItem("auth_token");
-      await fetch("http://localhost:5001/api/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ wallet: address, txHash: tx.hash }),
-      });
-
-      setStatus("out");
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Failed to check out");
-    }
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-background">
