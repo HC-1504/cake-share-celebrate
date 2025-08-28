@@ -15,8 +15,9 @@ export default function CheckInOut() {
   const [status, setStatus] = useState<"in" | "out" | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [txHash, setTxHash] = useState<string | null>(null);
 
-  // 🔹 Read status from blockchain
+  // 🔹 Read current blockchain status
   const { data: blockchainStatus, refetch } = useReadContract({
     address: checkInOutAddress[holesky.id],
     abi: checkInOutABI,
@@ -34,13 +35,21 @@ export default function CheckInOut() {
     }
   }, [blockchainStatus]);
 
+  // 🔹 Shared helper for backend calls
+  const updateBackend = async (endpoint: string) => {
+    const token = localStorage.getItem("auth_token");
+    const res = await fetch(`http://localhost:5001/api/${endpoint}`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    if (!res.ok) throw new Error(`Failed to save ${endpoint} to DB`);
+  };
+
   // 🔹 Handle Check-in
   const handleCheckin = async () => {
     setError("");
-    if (!address) {
-      setError("Please connect MetaMask first");
-      return;
-    }
+    if (!address) return setError("Please connect MetaMask first");
+
     try {
       setLoading(true);
 
@@ -51,16 +60,13 @@ export default function CheckInOut() {
         functionName: "checkIn",
         chainId: holesky.id,
       });
-      console.log("✅ Check-in tx:", tx);
 
-      // 2. Update backend DB
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch("http://localhost:5001/api/checkin", {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      if (!res.ok) throw new Error("Failed to save check-in to DB");
+      setTxHash(tx); // save tx hash
 
+      // 2. Backend update
+      await updateBackend("checkin");
+
+      // 3. UI updates
       setStatus("in");
       await refetch();
     } catch (err: any) {
@@ -73,10 +79,8 @@ export default function CheckInOut() {
   // 🔹 Handle Check-out
   const handleCheckout = async () => {
     setError("");
-    if (!address) {
-      setError("Please connect MetaMask first");
-      return;
-    }
+    if (!address) return setError("Please connect MetaMask first");
+
     try {
       setLoading(true);
 
@@ -87,16 +91,13 @@ export default function CheckInOut() {
         functionName: "checkOut",
         chainId: holesky.id,
       });
-      console.log("✅ Check-out tx:", tx);
 
-      // 2. Update backend DB
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch("http://localhost:5001/api/checkout", {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      if (!res.ok) throw new Error("Failed to save check-out to DB");
+      setTxHash(tx); // save tx hash
 
+      // 2. Backend update
+      await updateBackend("checkout");
+
+      // 3. UI updates
       setStatus("out");
       await refetch();
     } catch (err: any) {
@@ -116,6 +117,7 @@ export default function CheckInOut() {
         </CardHeader>
         <CardContent>
           {error && <p className="text-red-500 mb-2">{error}</p>}
+
           <p className="mb-4">
             Current Status:{" "}
             <span className="font-bold">
@@ -127,11 +129,22 @@ export default function CheckInOut() {
             </span>
           </p>
 
+          {txHash && (
+            <p className="mb-4 text-sm">
+              ⛓️ View on Etherscan:{" "}
+              <a
+                href={`https://holesky.etherscan.io/tx/${txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 underline"
+              >
+                {txHash.slice(0, 10)}...{txHash.slice(-6)}
+              </a>
+            </p>
+          )}
+
           <div className="flex gap-3">
-            <Button
-              onClick={handleCheckin}
-              disabled={loading || status === "in"}
-            >
+            <Button onClick={handleCheckin} disabled={loading || status === "in"}>
               {loading && status !== "in" ? "Processing..." : "Check In"}
             </Button>
 
