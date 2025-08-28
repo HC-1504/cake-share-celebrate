@@ -1169,43 +1169,46 @@ const Dashboard = () => {
                 </div>
                 <p className="text-muted-foreground mb-6">{step.description}</p>
                 <Button
-                  variant={step.status === "pending" ? "cake" : "soft"}
-                  className={`w-full ${step.status === "completed" ? "bg-green-100 text-green-700 hover:bg-green-100 hover:text-green-700" : ""}`}
-                  disabled={step.status === "locked"}
-                  onClick={() => {
-                    if (step.status !== 'pending') return;
-                    if (step.id === 'checkin') {
-                      handleCheckIn();
-                    } else if (step.id === 'checkout') {
-                      handleCheckOut();
-                    }
-                  }}
-                  asChild={step.status === "pending" && (step.id === 'cakeUpload' || step.id === 'voting')}
-                >
-                  {step.status === "completed" ? (
-                    step.id === "registration" ? (
-                      <span>🍰 Registered & Paid Successfully 🎉</span>
-                    ) : step.id === "cakeUpload" ? (
-                      <span>🍰 Cake Uploaded Successfully 🎉</span>
-                    ) : step.id === "checkin" ? (
-                      <span>✅ Checked In Successfully 🎉</span>
-                    ) : step.id === "voting" ? (
-                      <span>🗳️ Voting Completed 🎉</span>
-                    ) : step.id === 'checkout' ? (
-                      <span>👋 Checked Out 🎉</span>
-                    ) : (
-                      <span>Completed</span>
-                    )
-                  ) : step.status === "pending" ? (
-                    step.id === 'cakeUpload' || step.id === 'voting' ? (
-                      <Link to={step.link}>Start Now</Link>
-                    ) : (
-                      <span>{step.id === 'checkin' ? (isCheckingIn ? 'Checking in...' : 'Start') : step.id === 'checkout' ? (isCheckingOut ? 'Checking out...' : 'Start') : 'Start'}</span>
-                    )
-                  ) : (
-                    <span>Complete Previous Step</span>
-                  )}
-                </Button>
+  variant={step.status === "pending" ? "cake" : "soft"}
+  className={`w-full ${
+    step.status === "completed"
+      ? "bg-green-100 text-green-700 hover:bg-green-100 hover:text-green-700"
+      : ""
+  }`}
+  disabled={step.status === "locked"}
+  onClick={() => {
+    if (step.status !== "pending") return;
+
+    if (step.id === "checkin") {
+      handleCheckIn();
+    } else if (step.id === "checkout") {
+      handleCheckOut();
+    } else if (step.id === "cakeUpload" || step.id === "voting") {
+      connectWallet(); // 🔑 trigger MetaMask
+    }
+  }}
+>
+  {step.status === "completed" ? (
+    step.id === "registration" ? (
+      <span>🍰 Registered & Paid Successfully 🎉</span>
+    ) : step.id === "cakeUpload" ? (
+      <span>🍰 Cake Uploaded Successfully 🎉</span>
+    ) : step.id === "checkin" ? (
+      <span>✅ Checked In Successfully 🎉</span>
+    ) : step.id === "voting" ? (
+      <span>🗳️ Voting Completed 🎉</span>
+    ) : step.id === "checkout" ? (
+      <span>👋 Checked Out 🎉</span>
+    ) : (
+      <span>Completed</span>
+    )
+  ) : step.status === "pending" ? (
+    <span>Start</span> // Now always handled by onClick
+  ) : (
+    <span>Complete Previous Step</span>
+  )}
+</Button>
+
               </CardContent>
             </Card>
           ))}
