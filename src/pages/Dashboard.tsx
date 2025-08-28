@@ -753,9 +753,8 @@ const Dashboard = () => {
   icon: <MapPin className="h-6 w-6" />,
   link: "/checkin",
   // 👇 unlock check-in, but do NOT auto-complete it
-  status: userProgress.cakeUpload.completed 
-            ? userProgress.checkin.status   // this should only change after blockchain tx
-            : "locked"
+ status: userProgress.checkin.status
+
 },
 
     {
