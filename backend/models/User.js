@@ -12,23 +12,25 @@ export default (sequelize) => {
     }
   }
 
-  User.init({
-    firstName: DataTypes.STRING,
-    lastName: DataTypes.STRING,
-    email: {
-      type: DataTypes.STRING,
-      unique: true,
-    },
-    password: DataTypes.STRING,
-    ethAddress: DataTypes.STRING,
-    category: DataTypes.STRING,
-    txHash: DataTypes.STRING,
-    hasPaid: DataTypes.BOOLEAN,
-    checkedIn: DataTypes.BOOLEAN
-  }, {
-    sequelize,
-    modelName: 'User',
-  });
+ User.init({
+  firstName: DataTypes.STRING,
+  lastName: DataTypes.STRING,
+  email: {
+    type: DataTypes.STRING,
+    unique: true,
+  },
+  password: DataTypes.STRING,
+  ethAddress: DataTypes.STRING,
+  category: DataTypes.STRING,
+  txHash: DataTypes.STRING,
+  hasPaid: DataTypes.BOOLEAN,
+  checkedIn: DataTypes.BOOLEAN,
+  checkInTime: DataTypes.DATE   // NEW FIELD
+}, {
+  sequelize,
+  modelName: 'User',
+});
+
 
   return User;
 };
