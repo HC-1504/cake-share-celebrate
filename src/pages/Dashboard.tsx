@@ -752,8 +752,10 @@ const Dashboard = () => {
   description: "Check in instantly once you arrive",
   icon: <MapPin className="h-6 w-6" />,
   link: "/checkin",
-  // 👇 unlock check-in, but do NOT auto-complete it
- status: userProgress.checkin.status
+status: userProgress.cakeUpload.completed 
+          ? userProgress.checkin.status 
+          : "locked"
+
 
 },
 
