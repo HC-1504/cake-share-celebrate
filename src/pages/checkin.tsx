@@ -112,46 +112,92 @@ const Checkin = () => {
   }, [hasVotedBeautifulBlockchain, hasVotedDeliciousBlockchain]);
 
   const handleCheckin = async () => {
-    setError("");
-    try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch("http://localhost:5001/api/checkin", {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to check in");
-      }
-      setStatus('in');
-    } catch (err: any) {
-      setError(err.message || "Failed to check in");
-    }
-  };
-  const handleCheckout = async () => {
-    setError("");
+  setError("");
+  if (!address) {
+    setError("Please connect MetaMask first");
+    return;
+  }
 
-    // Check if both votes are completed (blockchain or database)
-    if (!votingStatus.both) {
-      setError("Please complete voting for both categories before checking out");
-      return;
+  try {
+    setBlockchainLoading(true);
+
+    // 1. Call smart contract
+    const tx = await writeContract({
+      address: checkInOutAddress[holesky.id],
+      abi: checkInOutABI,
+      functionName: "checkIn",
+      chainId: holesky.id,
+    });
+
+    // Wait for transaction to confirm
+    await tx.wait();
+
+    // 2. Call backend API only after blockchain success
+    const token = localStorage.getItem("auth_token");
+    const res = await fetch("http://localhost:5001/api/checkin", {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Failed to check in (DB)");
     }
 
-    try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch("http://localhost:5001/api/checkout", {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to check out");
-      }
-      setStatus('out');
-    } catch (err: any) {
-      setError(err.message || "Failed to check out");
+    setStatus('in');
+  } catch (err: any) {
+    setError(err.message || "Failed to check in");
+  } finally {
+    setBlockchainLoading(false);
+  }
+};
+
+const handleCheckout = async () => {
+  setError("");
+
+  if (!votingStatus.both) {
+    setError("Please complete voting for both categories before checking out");
+    return;
+  }
+
+  if (!address) {
+    setError("Please connect MetaMask first");
+    return;
+  }
+
+  try {
+    setBlockchainLoading(true);
+
+    // 1. Call smart contract
+    const tx = await writeContract({
+      address: checkInOutAddress[holesky.id],
+      abi: checkInOutABI,
+      functionName: "checkOut",
+      chainId: holesky.id,
+    });
+
+    await tx.wait();
+
+    // 2. Update backend
+    const token = localStorage.getItem("auth_token");
+    const res = await fetch("http://localhost:5001/api/checkout", {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Failed to check out (DB)");
     }
-  };
+
+    setStatus('out');
+  } catch (err: any) {
+    setError(err.message || "Failed to check out");
+  } finally {
+    setBlockchainLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-background">
