@@ -1,318 +1,158 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/App";
 import { Navigate, Link } from "react-router-dom";
-import { useAccount, useReadContract } from 'wagmi';
-import { cakeVotingABI, cakeVotingAddress } from '@/config/contracts';
-import { holesky } from 'wagmi/chains';
+import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { checkInOutABI, checkInOutAddress } from "@/config/contracts";
+import { holesky } from "wagmi/chains";
 
-const Checkin = () => {
-  const { isAuthenticated } = useAuth();
+export default function CheckInOut() {
+  const { user } = useAuth();
   const { address } = useAccount();
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  const { writeContractAsync } = useWriteContract();
 
-  const [status, setStatus] = useState<'none' | 'in' | 'out'>('none');
+  const [status, setStatus] = useState<"in" | "out" | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [blockchainLoading, setBlockchainLoading] = useState(true);
-  const [votingStatus, setVotingStatus] = useState({
-    beautiful: false,
-    delicious: false,
-    both: false
-  });
 
-
-  // Check blockchain voting status for beautiful category
-  const { data: hasVotedBeautifulBlockchain, isLoading: isLoadingBeautiful } = useReadContract({
-    address: cakeVotingAddress[holesky.id],
-    abi: cakeVotingABI,
-    functionName: 'hasVotedInCategory',
-    args: address ? [address, 'beautiful'] : undefined,
+  // 🔹 Read status from blockchain
+  const { data: blockchainStatus, refetch } = useReadContract({
+    address: checkInOutAddress[holesky.id],
+    abi: checkInOutABI,
+    functionName: "getStatus",
+    args: address ? [address] : undefined,
     chainId: holesky.id,
-    query: {
-      enabled: !!address,
-    },
   });
 
-  // Check blockchain voting status for delicious category
-  const { data: hasVotedDeliciousBlockchain, isLoading: isLoadingDelicious } = useReadContract({
-    address: cakeVotingAddress[holesky.id],
-    abi: cakeVotingABI,
-    functionName: 'hasVotedInCategory',
-    args: address ? [address, 'delicious'] : undefined,
-    chainId: holesky.id,
-    query: {
-      enabled: !!address,
-    },
-  });
-
-  // Fetch current check-in status when component loads
   useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const token = localStorage.getItem("auth_token");
-        const res = await fetch("http://localhost:5001/api/checkin/status", {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setStatus(data.status);
+    if (blockchainStatus) {
+      const [inStatus, outStatus] = blockchainStatus as [boolean, boolean];
+      if (inStatus) setStatus("in");
+      else if (outStatus) setStatus("out");
+      else setStatus(null);
+    }
+  }, [blockchainStatus]);
 
-          // Combine database voting status with blockchain status
-          const beautifulVoted = data.voting?.beautiful || hasVotedBeautifulBlockchain || false;
-          const deliciousVoted = data.voting?.delicious || hasVotedDeliciousBlockchain || false;
+  // 🔹 Handle Check-in
+  const handleCheckin = async () => {
+    setError("");
+    if (!address) {
+      setError("Please connect MetaMask first");
+      return;
+    }
+    try {
+      setLoading(true);
 
-          setVotingStatus({
-            beautiful: beautifulVoted,
-            delicious: deliciousVoted,
-            both: beautifulVoted && deliciousVoted
-          });
-        }
-      } catch (err) {
-        console.error("Failed to fetch check-in status:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      // 1. Blockchain call
+      const tx = await writeContractAsync({
+        address: checkInOutAddress[holesky.id],
+        abi: checkInOutABI,
+        functionName: "checkIn",
+        chainId: holesky.id,
+      });
+      console.log("✅ Check-in tx:", tx);
 
-    fetchStatus();
-  }, [hasVotedBeautifulBlockchain, hasVotedDeliciousBlockchain]);
+      // 2. Update backend DB
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch("http://localhost:5001/api/checkin", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (!res.ok) throw new Error("Failed to save check-in to DB");
 
-  // Add refresh button for users to manually update status
-  const handleRefreshStatus = () => {
-    setLoading(true);
-    window.location.reload();
+      setStatus("in");
+      await refetch();
+    } catch (err: any) {
+      setError(err.message || "Check-in failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Update blockchain loading state
-  useEffect(() => {
-    if (address) {
-      setBlockchainLoading(isLoadingBeautiful || isLoadingDelicious);
-    } else {
-      setBlockchainLoading(false);
+  // 🔹 Handle Check-out
+  const handleCheckout = async () => {
+    setError("");
+    if (!address) {
+      setError("Please connect MetaMask first");
+      return;
     }
-  }, [address, isLoadingBeautiful, isLoadingDelicious]);
+    try {
+      setLoading(true);
 
-  // Update voting status when blockchain data changes
-  useEffect(() => {
-    if (hasVotedBeautifulBlockchain !== undefined || hasVotedDeliciousBlockchain !== undefined) {
-      setVotingStatus(prev => {
-        const beautifulVoted = prev.beautiful || hasVotedBeautifulBlockchain || false;
-        const deliciousVoted = prev.delicious || hasVotedDeliciousBlockchain || false;
-
-        return {
-          beautiful: beautifulVoted,
-          delicious: deliciousVoted,
-          both: beautifulVoted && deliciousVoted
-        };
+      // 1. Blockchain call
+      const tx = await writeContractAsync({
+        address: checkInOutAddress[holesky.id],
+        abi: checkInOutABI,
+        functionName: "checkOut",
+        chainId: holesky.id,
       });
+      console.log("✅ Check-out tx:", tx);
+
+      // 2. Update backend DB
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch("http://localhost:5001/api/checkout", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (!res.ok) throw new Error("Failed to save check-out to DB");
+
+      setStatus("out");
+      await refetch();
+    } catch (err: any) {
+      setError(err.message || "Check-out failed");
+    } finally {
+      setLoading(false);
     }
-  }, [hasVotedBeautifulBlockchain, hasVotedDeliciousBlockchain]);
+  };
 
-  const handleCheckin = async () => {
-  setError("");
-  if (!address) {
-    setError("Please connect MetaMask first");
-    return;
-  }
-
-  try {
-    setBlockchainLoading(true);
-
-    // 1. Call smart contract
-    const tx = await writeContract({
-      address: checkInOutAddress[holesky.id],
-      abi: checkInOutABI,
-      functionName: "checkIn",
-      chainId: holesky.id,
-    });
-
-    // Wait for transaction to confirm
-    await tx.wait();
-
-    // 2. Call backend API only after blockchain success
-    const token = localStorage.getItem("auth_token");
-    const res = await fetch("http://localhost:5001/api/checkin", {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.error || "Failed to check in (DB)");
-    }
-
-    setStatus('in');
-  } catch (err: any) {
-    setError(err.message || "Failed to check in");
-  } finally {
-    setBlockchainLoading(false);
-  }
-};
-
-const handleCheckout = async () => {
-  setError("");
-
-  if (!votingStatus.both) {
-    setError("Please complete voting for both categories before checking out");
-    return;
-  }
-
-  if (!address) {
-    setError("Please connect MetaMask first");
-    return;
-  }
-
-  try {
-    setBlockchainLoading(true);
-
-    // 1. Call smart contract
-    const tx = await writeContract({
-      address: checkInOutAddress[holesky.id],
-      abi: checkInOutABI,
-      functionName: "checkOut",
-      chainId: holesky.id,
-    });
-
-    await tx.wait();
-
-    // 2. Update backend
-    const token = localStorage.getItem("auth_token");
-    const res = await fetch("http://localhost:5001/api/checkout", {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.error || "Failed to check out (DB)");
-    }
-
-    setStatus('out');
-  } catch (err: any) {
-    setError(err.message || "Failed to check out");
-  } finally {
-    setBlockchainLoading(false);
-  }
-};
-
+  if (!user) return <Navigate to="/login" />;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-background">
-      <Card className="max-w-md w-full border-0 shadow-cake">
+    <div className="p-6 flex justify-center">
+      <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-center text-xl">Event Check-in</CardTitle>
-
-          {/* MetaMask Loading Indicator */}
-          {blockchainLoading && address && (
-            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center justify-center gap-2 text-blue-700">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700"></div>
-                <span className="text-sm">🦊 Loading MetaMask data...</span>
-              </div>
-            </div>
-          )}
+          <CardTitle>Cake Picnic Check-In / Check-Out</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center mb-6">
-            {loading ? (
-              <div className="text-muted-foreground">Loading status...</div>
-            ) : (
-              <>
-                {status === 'none' && <div className="text-muted-foreground">You have not checked in yet.</div>}
-                {status === 'in' && <div className="text-green-600 font-semibold">✅ You are checked in!</div>}
-                {status === 'out' && <div className="text-blue-600 font-semibold">👋 You have checked out.</div>}
-              </>
-            )}
-            {error && <div className="text-red-600 font-semibold mt-2">{error}</div>}
+          {error && <p className="text-red-500 mb-2">{error}</p>}
+          <p className="mb-4">
+            Current Status:{" "}
+            <span className="font-bold">
+              {status === "in"
+                ? "✅ Checked In"
+                : status === "out"
+                ? "👋 Checked Out"
+                : "Not Checked In"}
+            </span>
+          </p>
+
+          <div className="flex gap-3">
+            <Button
+              onClick={handleCheckin}
+              disabled={loading || status === "in"}
+            >
+              {loading && status !== "in" ? "Processing..." : "Check In"}
+            </Button>
+
+            <Button
+              onClick={handleCheckout}
+              disabled={loading || status === "out"}
+              variant="secondary"
+            >
+              {loading && status !== "out" ? "Processing..." : "Check Out"}
+            </Button>
           </div>
 
-          {/* Voting Status Display */}
-          {!loading && status === 'in' && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-semibold text-gray-800 mb-3">🗳️ Voting Requirements for Check-out</h3>
-              <div className="space-y-2 text-sm">
-                <div className={`flex items-center gap-2 ${votingStatus.beautiful ? 'text-green-600' : 'text-orange-600'}`}>
-                  {votingStatus.beautiful ? '✅' : '⏳'} Most Beautiful Cake
-                  {votingStatus.beautiful ? ' - Voted ✓' : ' - Not voted yet'}
-                  {hasVotedBeautifulBlockchain && (
-                    <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">Blockchain ✓</span>
-                  )}
-                </div>
-                <div className={`flex items-center gap-2 ${votingStatus.delicious ? 'text-green-600' : 'text-orange-600'}`}>
-                  {votingStatus.delicious ? '✅' : '⏳'} Most Delicious Cake
-                  {votingStatus.delicious ? ' - Voted ✓' : ' - Not voted yet'}
-                  {hasVotedDeliciousBlockchain && (
-                    <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">Blockchain ✓</span>
-                  )}
-                </div>
-                {!votingStatus.both && (
-                  <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">
-                    <p className="text-xs">
-                      💡 You must vote for both categories before you can check out.
-                      <Link to="/voting" className="underline ml-1 hover:text-yellow-900">Go to voting page</Link>
-                    </p>
-                  </div>
-                )}
-                {votingStatus.both && (
-                  <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded text-green-800">
-                    <p className="text-xs">🎉 All voting complete! You can now check out.</p>
-                  </div>
-                )}
-
-                {/* Refresh Status Button */}
-                <div className="mt-3 text-center">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRefreshStatus}
-                    className="text-xs"
-                  >
-                    🔄 Refresh Status
-                  </Button>
-                </div>
-              </div>
+          {status === "in" && (
+            <div className="mt-6">
+              <Link to="/vote">
+                <Button className="w-full">Go Vote 🍰</Button>
+              </Link>
             </div>
           )}
-          <div className="flex flex-col gap-4">
-            <Button
-              variant="cake"
-              className="w-full"
-              onClick={handleCheckin}
-              disabled={loading || status === 'in' || status === 'out'}
-            >
-              {status === 'in' ? '✅ Already Checked In' : status === 'out' ? '✅ Event Complete' : '🚪 Check In'}
-            </Button>
-
-            {/* Show voting button if checked in but haven't voted for both */}
-            {status === 'in' && !votingStatus.both && (
-              <Button variant="outline" className="w-full" asChild>
-                <Link to="/voting">
-                  🗳️ Go Vote Now
-                </Link>
-              </Button>
-            )}
-
-            <Button
-              variant="soft"
-              className="w-full"
-              onClick={handleCheckout}
-              disabled={loading || status !== 'in' || !votingStatus.both}
-            >
-              {status === 'out'
-                ? '👋 Already Checked Out'
-                : !votingStatus.both && status === 'in'
-                ? '🗳️ Complete Voting First'
-                : '🚪 Check Out'
-              }
-            </Button>
-          </div>
         </CardContent>
       </Card>
     </div>
   );
-};
-
-export default Checkin; 
+}
