@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/App";
 import { Navigate, Link } from "react-router-dom";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { checkInOutABI, checkInOutAddress } from "@/config/contracts";
 import { holesky } from "wagmi/chains";
 
@@ -16,6 +16,13 @@ export default function CheckInOut() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [txHash, setTxHash] = useState<string | null>(null);
+
+  // 🔹 Watch transaction receipt
+  const { data: receipt, isLoading: txPending, isSuccess, isError } =
+    useWaitForTransactionReceipt({
+      hash: txHash,
+      chainId: holesky.id,
+    });
 
   // 🔹 Read current blockchain status
   const { data: blockchainStatus, refetch } = useReadContract({
@@ -52,8 +59,6 @@ export default function CheckInOut() {
 
     try {
       setLoading(true);
-
-      // 1. Blockchain call
       const tx = await writeContractAsync({
         address: checkInOutAddress[holesky.id],
         abi: checkInOutABI,
@@ -62,13 +67,7 @@ export default function CheckInOut() {
       });
 
       setTxHash(tx); // save tx hash
-
-      // 2. Backend update
       await updateBackend("checkin");
-
-      // 3. UI updates
-      setStatus("in");
-      await refetch();
     } catch (err: any) {
       setError(err.message || "Check-in failed");
     } finally {
@@ -83,8 +82,6 @@ export default function CheckInOut() {
 
     try {
       setLoading(true);
-
-      // 1. Blockchain call
       const tx = await writeContractAsync({
         address: checkInOutAddress[holesky.id],
         abi: checkInOutABI,
@@ -93,19 +90,20 @@ export default function CheckInOut() {
       });
 
       setTxHash(tx); // save tx hash
-
-      // 2. Backend update
       await updateBackend("checkout");
-
-      // 3. UI updates
-      setStatus("out");
-      await refetch();
     } catch (err: any) {
       setError(err.message || "Check-out failed");
     } finally {
       setLoading(false);
     }
   };
+
+  // 🔹 Update UI once tx is confirmed
+  useEffect(() => {
+    if (isSuccess) {
+      refetch();
+    }
+  }, [isSuccess]);
 
   if (!user) return <Navigate to="/login" />;
 
@@ -131,7 +129,7 @@ export default function CheckInOut() {
 
           {txHash && (
             <p className="mb-4 text-sm">
-              ⛓️ View on Etherscan:{" "}
+              ⛓️ Tx:{" "}
               <a
                 href={`https://holesky.etherscan.io/tx/${txHash}`}
                 target="_blank"
@@ -140,12 +138,18 @@ export default function CheckInOut() {
               >
                 {txHash.slice(0, 10)}...{txHash.slice(-6)}
               </a>
+              <br />
+              {txPending && <span className="text-yellow-500">⏳ Pending...</span>}
+              {isSuccess && (
+                <span className="text-green-500">✅ Confirmed in block {receipt?.blockNumber?.toString()}</span>
+              )}
+              {isError && <span className="text-red-500">❌ Failed</span>}
             </p>
           )}
 
           <div className="flex gap-3">
             <Button onClick={handleCheckin} disabled={loading || status === "in"}>
-              {loading && status !== "in" ? "Processing..." : "Check In"}
+              {loading ? "Processing..." : "Check In"}
             </Button>
 
             <Button
@@ -153,7 +157,7 @@ export default function CheckInOut() {
               disabled={loading || status === "out"}
               variant="secondary"
             >
-              {loading && status !== "out" ? "Processing..." : "Check Out"}
+              {loading ? "Processing..." : "Check Out"}
             </Button>
           </div>
 
