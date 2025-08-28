@@ -1,39 +1,45 @@
 import express from "express";
-import { User } from "../models/index.js";
+import { User } from "./models/index.js";
 
 const router = express.Router();
 
-// ✅ Check-in
+// ✅ Check-in route
 router.post("/checkin", async (req, res) => {
   try {
-    const { userId, txHash } = req.body;
+    const { ethAddress, txHash } = req.body;
 
-    const updated = await User.update(
-      { checkedIn: true, checkInTime: new Date(), txHash },
-      { where: { id: userId } }
-    );
+    const user = await User.findOne({ where: { ethAddress } });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    res.json({ success: true, message: "Checked in", updated });
+    user.checkedIn = true;
+    user.txHash = txHash;
+    user.checkInAt = new Date(); // store timestamp
+    await user.save();
+
+    res.json({ message: "Checked in successfully", user });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-// ✅ Check-out
+// ✅ Check-out route
 router.post("/checkout", async (req, res) => {
   try {
-    const { userId, txHash } = req.body;
+    const { ethAddress, txHash } = req.body;
 
-    const updated = await User.update(
-      { checkedIn: false, checkInTime: new Date(), txHash },
-      { where: { id: userId } }
-    );
+    const user = await User.findOne({ where: { ethAddress } });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    res.json({ success: true, message: "Checked out", updated });
+    user.checkedIn = false;
+    user.txHash = txHash;
+    user.checkOutAt = new Date(); // store timestamp
+    await user.save();
+
+    res.json({ message: "Checked out successfully", user });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
