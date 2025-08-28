@@ -251,7 +251,7 @@ const Voting = () => {
         abi: cakeVotingABI,                     // Contract interface (function signatures)
         functionName: 'vote',                   // Smart contract function to call
         args: [BigInt(cakeId), votingCategory], // Parameters: cake ID and category
-        chain: holesky.id,                         // Blockchain network (Holesky testnet)
+        chain: holesky,                         // Blockchain network (Holesky testnet)
         account: address,                       // User's wallet address
       });
 
