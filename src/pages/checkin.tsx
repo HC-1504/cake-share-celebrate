@@ -77,7 +77,7 @@ const Checkin = () => {
     });
   }, [hasVotedBeautifulBlockchain, hasVotedDeliciousBlockchain]);
 
- // --- Checkin ---
+// --- Checkin ---
 const handleCheckin = async () => {
   setError("");
   if (!address) {
@@ -91,13 +91,32 @@ const handleCheckin = async () => {
       functionName: "checkIn",
       chainId: holesky.id,
     });
+
     console.log("✅ Check-in TX:", tx);
+
+    // ✅ Wait for confirmation
+    if (tx.wait) {
+      await tx.wait();
+    }
+
+    // ✅ Sync with your backend DB (like you do for checkout)
+    const token = localStorage.getItem("auth_token");
+    await fetch("http://localhost:5001/api/checkin", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ wallet: address, txHash: tx.hash }),
+    });
+
     setStatus("in");
   } catch (err: any) {
     console.error("❌ Check-in error:", err);
     setError(err.shortMessage || err.message || "Failed to check in");
   }
 };
+
 
 // --- Checkout ---
 const handleCheckout = async () => {
