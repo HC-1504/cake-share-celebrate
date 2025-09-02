@@ -113,62 +113,78 @@ export default function CheckInOut() {
         <CardHeader>
           <CardTitle>Cake Picnic Check-In / Check-Out</CardTitle>
         </CardHeader>
-        <CardContent>
-          {error && <p className="text-red-500 mb-2">{error}</p>}
+       <CardContent>
+  {error && <p className="text-red-500 mb-2">{error}</p>}
 
-          <p className="mb-4">
-            Current Status:{" "}
-            <span className="font-bold">
-              {status === "in"
-                ? "✅ Checked In"
-                : status === "out"
-                ? "👋 Checked Out"
-                : "Not Checked In"}
-            </span>
-          </p>
+  <p className="mb-4">
+    Current Status:{" "}
+    <span className="font-bold">
+      {status === "in"
+        ? "✅ Checked In"
+        : status === "out"
+        ? "👋 Checked Out"
+        : "Not Checked In"}
+    </span>
+  </p>
 
-          {txHash && (
-            <p className="mb-4 text-sm">
-              ⛓️ Tx:{" "}
-              <a
-                href={`https://holesky.etherscan.io/tx/${txHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 underline"
-              >
-                {txHash.slice(0, 10)}...{txHash.slice(-6)}
-              </a>
-              <br />
-              {txPending && <span className="text-yellow-500">⏳ Pending...</span>}
-              {isSuccess && (
-                <span className="text-green-500">✅ Confirmed in block {receipt?.blockNumber?.toString()}</span>
-              )}
-              {isError && <span className="text-red-500">❌ Failed</span>}
-            </p>
-          )}
+  {txHash && (
+    <p className="mb-4 text-sm">
+      ⛓️ Tx:{" "}
+      <a
+        href={`https://holesky.etherscan.io/tx/${txHash}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-500 underline"
+      >
+        {txHash.slice(0, 10)}...{txHash.slice(-6)}
+      </a>
+      <br />
+      {txPending && <span className="text-yellow-500">⏳ Pending...</span>}
+      {isSuccess && (
+        <span className="text-green-500">
+          ✅ Confirmed in block {receipt?.blockNumber?.toString()}
+        </span>
+      )}
+      {isError && <span className="text-red-500">❌ Failed</span>}
+    </p>
+  )}
 
-          <div className="flex gap-3">
-            <Button onClick={handleCheckin} disabled={loading || status === "in"}>
-              {loading ? "Processing..." : "Check In"}
-            </Button>
+  {/* 🔹 Connect MetaMask button shows only if not connected */}
+  {!address && (
+    <Button
+      onClick={() =>
+        window.ethereum.request({ method: "eth_requestAccounts" })
+      }
+      className="mb-4 w-full"
+    >
+      🦊 Connect MetaMask
+    </Button>
+  )}
 
-            <Button
-              onClick={handleCheckout}
-              disabled={loading || status === "out"}
-              variant="secondary"
-            >
-              {loading ? "Processing..." : "Check Out"}
-            </Button>
-          </div>
+  {/* 🔹 Check In / Check Out buttons */}
+  <div className="flex gap-3">
+    <Button onClick={handleCheckin} disabled={loading || status === "in"}>
+      {loading ? "Processing..." : "Check In"}
+    </Button>
 
-          {status === "in" && (
-            <div className="mt-6">
-              <Link to="/vote">
-                <Button className="w-full">Go Vote 🍰</Button>
-              </Link>
-            </div>
-          )}
-        </CardContent>
+    <Button
+      onClick={handleCheckout}
+      disabled={loading || status === "out"}
+      variant="secondary"
+    >
+      {loading ? "Processing..." : "Check Out"}
+    </Button>
+  </div>
+
+  {status === "in" && (
+    <div className="mt-6">
+      <Link to="/vote">
+        <Button className="w-full">Go Vote 🍰</Button>
+      </Link>
+    </div>
+  )}
+</CardContent>
+
       </Card>
     </div>
   );
