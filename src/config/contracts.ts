@@ -960,16 +960,22 @@ export const checkInOutABI = [
   },
   {
     "inputs": [
-      {
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      }
+      { "internalType": "address", "name": "user", "type": "address" }
     ],
-    "name": "getStatus",
+    "name": "hasCheckedIn",
     "outputs": [
-      { "internalType": "bool", "name": "inStatus", "type": "bool" },
-      { "internalType": "bool", "name": "outStatus", "type": "bool" }
+      { "internalType": "bool", "name": "", "type": "bool" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "user", "type": "address" }
+    ],
+    "name": "hasCheckedOut",
+    "outputs": [
+      { "internalType": "bool", "name": "", "type": "bool" }
     ],
     "stateMutability": "view",
     "type": "function"
@@ -977,7 +983,8 @@ export const checkInOutABI = [
   {
     "anonymous": false,
     "inputs": [
-      { "indexed": true, "internalType": "address", "name": "user", "type": "address" }
+      { "indexed": true, "internalType": "address", "name": "user", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "time", "type": "uint256" }
     ],
     "name": "CheckedIn",
     "type": "event"
@@ -985,7 +992,8 @@ export const checkInOutABI = [
   {
     "anonymous": false,
     "inputs": [
-      { "indexed": true, "internalType": "address", "name": "user", "type": "address" }
+      { "indexed": true, "internalType": "address", "name": "user", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "time", "type": "uint256" }
     ],
     "name": "CheckedOut",
     "type": "event"
@@ -995,5 +1003,3 @@ export const checkInOutABI = [
 export const checkInOutAddress = {
   [holesky.id]: "0xd237FD5F1909C3bB89eF919F2E336c5F38B276Df" as `0x${string}`,
 };
-
-
