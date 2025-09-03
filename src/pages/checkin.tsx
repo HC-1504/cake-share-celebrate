@@ -4,9 +4,13 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/App";
 import { Navigate, Link } from "react-router-dom";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
-import { cakeVotingABI, cakeVotingAddress } from "@/config/contracts";
+import {
+  cakeVotingABI,
+  cakeVotingAddress,
+  checkInOutABI,
+  checkInOutAddress,
+} from "@/config/contracts";
 import { holesky } from "wagmi/chains";
-
 const Checkin = () => {
   const { isAuthenticated } = useAuth();
   const { address } = useAccount();
