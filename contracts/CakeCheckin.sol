@@ -1,34 +1,31 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-contract CakeCheckIn {
-    struct Attendance {
-        bool checkedIn;
-        bool checkedOut;
-    }
+contract CheckInOut {
+    mapping(address => uint256) public checkInTimes;
+    mapping(address => uint256) public checkOutTimes;
 
-    mapping(address => Attendance) public attendance;
-
-    event CheckedIn(address indexed user);
-    event CheckedOut(address indexed user);
+    event CheckedIn(address indexed user, uint256 time);
+    event CheckedOut(address indexed user, uint256 time);
 
     function checkIn() external {
-        require(!attendance[msg.sender].checkedIn, "Already checked in");
-        attendance[msg.sender].checkedIn = true;
-
-        emit CheckedIn(msg.sender);
+        require(checkInTimes[msg.sender] == 0, "Already checked in");
+        checkInTimes[msg.sender] = block.timestamp;
+        emit CheckedIn(msg.sender, block.timestamp);
     }
 
     function checkOut() external {
-        require(attendance[msg.sender].checkedIn, "Not checked in yet");
-        require(!attendance[msg.sender].checkedOut, "Already checked out");
-        attendance[msg.sender].checkedOut = true;
-
-        emit CheckedOut(msg.sender);
+        require(checkInTimes[msg.sender] != 0, "Not checked in");
+        require(checkOutTimes[msg.sender] == 0, "Already checked out");
+        checkOutTimes[msg.sender] = block.timestamp;
+        emit CheckedOut(msg.sender, block.timestamp);
     }
 
-    function getStatus(address user) external view returns (bool inStatus, bool outStatus) {
-        Attendance memory a = attendance[user];
-        return (a.checkedIn, a.checkedOut);
+    function hasCheckedIn(address user) external view returns (bool) {
+        return checkInTimes[user] != 0;
+    }
+
+    function hasCheckedOut(address user) external view returns (bool) {
+        return checkOutTimes[user] != 0;
     }
 }
