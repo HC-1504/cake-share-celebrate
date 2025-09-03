@@ -959,27 +959,21 @@ app.post('/api/checkin', auth, async (req, res) => {
 
 // --- Check-in/out Routes ---
 
-// --- Check-in/out Routes ---
-// ✅ Check-in
 app.post('/api/checkin', auth, async (req, res) => {
   try {
     const { txHash, wallet } = req.body;
+    console.log("📥 Incoming check-in:", { userId: req.user?.id, txHash, wallet });
+
     const user = await User.findByPk(req.user.id);
+    console.log("👤 User from DB:", user ? user.toJSON() : null);
 
-    if (!user) {
-      console.warn("Check-in failed: User not found", req.user.id);
-      return res.status(404).json({ error: 'User not found' });
-    }
+    const cake = await Cake.findOne({ where: { UserId: user?.id } });
+    console.log("🍰 Cake linked:", cake ? cake.toJSON() : null);
 
-    // ✅ Require cake upload
-    const cake = await Cake.findOne({ where: { UserId: user.id } });
-    if (!cake) {
-      console.warn("Check-in failed: No cake uploaded by user", user.id);
-      return res.status(400).json({ error: 'Please upload your cake before check-in' });
-    }
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!cake) return res.status(400).json({ error: 'Please upload your cake before check-in' });
 
     if (user.checkedIn) {
-      console.log("User already checked in:", user.id);
       return res.status(200).json({ message: 'Already checked in', checkedIn: true });
     }
 
@@ -989,11 +983,10 @@ app.post('/api/checkin', auth, async (req, res) => {
       ethAddress: wallet
     });
 
-    console.log("✅ User checked in:", user.id, "tx:", txHash);
     res.json({ message: 'Checked in successfully', checkedIn: true, txHash });
   } catch (error) {
     console.error('❌ Error during check-in:', error);
-    res.status(500).json({ error: 'Failed to check in', details: error.message });
+    res.status(500).json({ error: 'Failed to check in', details: error.message, stack: error.stack });
   }
 });
 
