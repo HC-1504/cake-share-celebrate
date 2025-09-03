@@ -11,6 +11,7 @@ import {
   checkInOutAddress,
 } from "@/config/contracts";
 import { holesky } from "wagmi/chains";
+
 const Checkin = () => {
   const { isAuthenticated } = useAuth();
   const { address } = useAccount();
@@ -28,7 +29,7 @@ const Checkin = () => {
     both: false,
   });
 
-  // Check blockchain voting status for beautiful category
+  // ✅ Blockchain voting status
   const { data: hasVotedBeautifulBlockchain, isLoading: isLoadingBeautiful } =
     useReadContract({
       address: cakeVotingAddress[holesky.id],
@@ -36,12 +37,9 @@ const Checkin = () => {
       functionName: "hasVotedInCategory",
       args: address ? [address, "beautiful"] : undefined,
       chainId: holesky.id,
-      query: {
-        enabled: !!address,
-      },
+      query: { enabled: !!address },
     });
 
-  // Check blockchain voting status for delicious category
   const { data: hasVotedDeliciousBlockchain, isLoading: isLoadingDelicious } =
     useReadContract({
       address: cakeVotingAddress[holesky.id],
@@ -49,12 +47,10 @@ const Checkin = () => {
       functionName: "hasVotedInCategory",
       args: address ? [address, "delicious"] : undefined,
       chainId: holesky.id,
-      query: {
-        enabled: !!address,
-      },
+      query: { enabled: !!address },
     });
 
-  // Fetch current check-in status when component loads
+  // ✅ Fetch DB check-in status
   useEffect(() => {
     const fetchStatus = async () => {
       try {
@@ -66,7 +62,6 @@ const Checkin = () => {
           const data = await res.json();
           setStatus(data.status);
 
-          // Combine database voting status with blockchain status
           const beautifulVoted =
             data.voting?.beautiful || hasVotedBeautifulBlockchain || false;
           const deliciousVoted =
@@ -88,13 +83,13 @@ const Checkin = () => {
     fetchStatus();
   }, [hasVotedBeautifulBlockchain, hasVotedDeliciousBlockchain]);
 
-  // Add refresh button for users to manually update status
+  // ✅ Refresh button
   const handleRefreshStatus = () => {
     setLoading(true);
     window.location.reload();
   };
 
-  // Update blockchain loading state
+  // ✅ Blockchain loading
   useEffect(() => {
     if (address) {
       setBlockchainLoading(isLoadingBeautiful || isLoadingDelicious);
@@ -103,7 +98,7 @@ const Checkin = () => {
     }
   }, [address, isLoadingBeautiful, isLoadingDelicious]);
 
-  // Update voting status when blockchain data changes
+  // ✅ Voting status update
   useEffect(() => {
     if (
       hasVotedBeautifulBlockchain !== undefined ||
@@ -128,17 +123,16 @@ const Checkin = () => {
   const handleCheckin = async () => {
     setError("");
     try {
-      // 1. Trigger blockchain transaction
       const txHash = await writeContractAsync({
-        address: cakeVotingAddress[holesky.id],
-        abi: cakeVotingABI,
-        functionName: "checkIn", // must exist in your contract
+        address: checkInOutAddress[holesky.id], // ✅ correct contract
+        abi: checkInOutABI,
+        functionName: "checkIn",                // ✅ must exist in CheckInOut.sol
         chainId: holesky.id,
+        account: address,                       // ✅ ensure MetaMask signs
       });
 
       console.log("Check-in tx:", txHash);
 
-      // 2. Send tx hash to backend
       const token = localStorage.getItem("auth_token");
       const res = await fetch("http://localhost:5001/api/checkin", {
         method: "POST",
@@ -171,17 +165,16 @@ const Checkin = () => {
     }
 
     try {
-      // 1. Trigger blockchain transaction
       const txHash = await writeContractAsync({
-        address: cakeVotingAddress[holesky.id],
-        abi: cakeVotingABI,
-        functionName: "checkOut", // must exist in your contract
+        address: checkInOutAddress[holesky.id],
+        abi: checkInOutABI,
+        functionName: "checkOut", // ✅ must exist in CheckInOut.sol
         chainId: holesky.id,
+        account: address,
       });
 
       console.log("Check-out tx:", txHash);
 
-      // 2. Send tx hash to backend
       const token = localStorage.getItem("auth_token");
       const res = await fetch("http://localhost:5001/api/checkout", {
         method: "POST",
@@ -210,7 +203,6 @@ const Checkin = () => {
         <CardHeader>
           <CardTitle className="text-center text-xl">Event Check-in</CardTitle>
 
-          {/* MetaMask Loading Indicator */}
           {blockchainLoading && address && (
             <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-center justify-center gap-2 text-blue-700">
@@ -248,7 +240,7 @@ const Checkin = () => {
             )}
           </div>
 
-          {/* Voting Status Display */}
+          {/* Voting Status */}
           {!loading && status === "in" && (
             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
               <h3 className="font-semibold text-gray-800 mb-3">
@@ -307,7 +299,7 @@ const Checkin = () => {
                   </div>
                 )}
 
-                {/* Refresh Status Button */}
+                {/* Refresh */}
                 <div className="mt-3 text-center">
                   <Button
                     variant="outline"
@@ -321,6 +313,8 @@ const Checkin = () => {
               </div>
             </div>
           )}
+
+          {/* Buttons */}
           <div className="flex flex-col gap-4">
             <Button
               variant="cake"
@@ -335,7 +329,6 @@ const Checkin = () => {
                 : "🚪 Check In"}
             </Button>
 
-            {/* Show voting button if checked in but haven't voted for both */}
             {status === "in" && !votingStatus.both && (
               <Button variant="outline" className="w-full" asChild>
                 <Link to="/voting">🗳️ Go Vote Now</Link>
