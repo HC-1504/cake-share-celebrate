@@ -10,10 +10,7 @@ import {
   useChainId,
   useSwitchChain,
 } from "wagmi";
-import {
-  checkInOutABI,
-  checkInOutAddress,
-} from "@/config/contracts";
+import { checkInOutABI, checkInOutAddress } from "@/config/contracts";
 import { holesky } from "wagmi/chains";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,39 +23,44 @@ const CheckIn = () => {
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
 
-  // Contract write hook
   const { writeContractAsync, isPending } = useWriteContract();
-  const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
+  const [pendingTx, setPendingTx] = useState<{
+    hash: `0x${string}`;
+    type: "checkin" | "checkout";
+  } | null>(null);
 
-  // Wait for blockchain confirmation
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({
-      hash: pendingTxHash as `0x${string}`,
+      hash: pendingTx?.hash,
     });
 
-  // Call backend after blockchain confirms
+  // Trigger DB save after blockchain confirms
   useEffect(() => {
-    if (isConfirmed && pendingTxHash) {
+    if (isConfirmed && pendingTx) {
       const saveToDb = async () => {
         try {
-          const res = await fetch("/api/checkin", {
+          const endpoint =
+            pendingTx.type === "checkin" ? "/api/checkin" : "/api/checkout";
+
+          const res = await fetch(endpoint, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
-              txHash: pendingTxHash,
+              txHash: pendingTx.hash,
               wallet: address,
             }),
           });
 
-          if (!res.ok) throw new Error("Failed to save check-in");
+          if (!res.ok) throw new Error("Failed to save");
 
           toast({
             title: "✅ Success!",
-            description:
-              "You are checked in. Blockchain + database updated.",
+            description: `You are ${
+              pendingTx.type === "checkin" ? "checked in" : "checked out"
+            }. Blockchain + database updated.`,
           });
         } catch (err: any) {
           toast({
@@ -67,16 +69,16 @@ const CheckIn = () => {
             variant: "destructive",
           });
         } finally {
-          setPendingTxHash(null);
+          setPendingTx(null);
         }
       };
 
       saveToDb();
     }
-  }, [isConfirmed, pendingTxHash, address, token, toast]);
+  }, [isConfirmed, pendingTx, address, token, toast]);
 
-  // Check In handler
-  const handleCheckIn = async () => {
+  // Shared helper
+  const executeTx = async (fn: "checkIn" | "checkOut", type: "checkin" | "checkout") => {
     if (!address) {
       toast({
         title: "Wallet Not Connected",
@@ -100,66 +102,17 @@ const CheckIn = () => {
     }
 
     try {
-      toast({ title: "MetaMask", description: "Please confirm Check In..." });
+      toast({ title: "MetaMask", description: `Please confirm ${type}...` });
       const hash = await writeContractAsync({
         address: checkInOutAddress[holesky.id],
         abi: checkInOutABI,
-        functionName: "checkIn",
+        functionName: fn,
         args: [],
         account: address,
         chain: holesky,
       });
 
-      setPendingTxHash(hash);
-      toast({
-        title: "Transaction Sent",
-        description: `Hash: ${hash.slice(0, 10)}...${hash.slice(-8)}`,
-      });
-    } catch (err: any) {
-      toast({
-        title: "Transaction Failed",
-        description: err.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Check Out handler
-  const handleCheckOut = async () => {
-    if (!address) {
-      toast({
-        title: "Wallet Not Connected",
-        description: "Please connect MetaMask.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (chainId !== holesky.id) {
-      try {
-        await switchChain({ chainId: holesky.id });
-      } catch {
-        toast({
-          title: "Wrong Network",
-          description: "Switch to Holesky Testnet.",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    try {
-      toast({ title: "MetaMask", description: "Please confirm Check Out..." });
-      const hash = await writeContractAsync({
-        address: checkInOutAddress[holesky.id],
-        abi: checkInOutABI,
-        functionName: "checkOut",
-        args: [],
-        account: address,
-        chain: holesky,
-      });
-
-      setPendingTxHash(hash);
+      setPendingTx({ hash, type });
       toast({
         title: "Transaction Sent",
         description: `Hash: ${hash.slice(0, 10)}...${hash.slice(-8)}`,
@@ -183,14 +136,14 @@ const CheckIn = () => {
           <Button
             variant="cake"
             disabled={isPending || isConfirming}
-            onClick={handleCheckIn}
+            onClick={() => executeTx("checkIn", "checkin")}
           >
             {isPending || isConfirming ? "⏳ Processing..." : "🟢 Check In"}
           </Button>
           <Button
             variant="destructive"
             disabled={isPending || isConfirming}
-            onClick={handleCheckOut}
+            onClick={() => executeTx("checkOut", "checkout")}
           >
             {isPending || isConfirming ? "⏳ Processing..." : "🔴 Check Out"}
           </Button>
