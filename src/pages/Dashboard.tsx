@@ -169,9 +169,9 @@ const Dashboard = () => {
     setUpdating(true);
 
     try {
-      console.log('🔄 开始编辑蛋糕...');
-      console.log('用户蛋糕ID:', userCake.id);
-      console.log('编辑表单数据:', editForm);
+      console.log('ðŸ”„ å¼€å§‹ç¼–è¾‘è›‹ç³•...');
+      console.log('ç”¨æˆ·è›‹ç³•ID:', userCake.id);
+      console.log('ç¼–è¾‘è¡¨å•æ•°æ®:', editForm);
 
       const formData = new FormData();
       formData.append('title', editForm.title);
@@ -183,10 +183,10 @@ const Dashboard = () => {
 
       if (selectedFile) {
         formData.append('file', selectedFile);
-        console.log('📁 包含文件上传:', selectedFile.name);
+        console.log('ðŸ“ åŒ…å«æ–‡ä»¶ä¸Šä¼ :', selectedFile.name);
       }
 
-      console.log('📤 发送PUT请求到:', `http://localhost:5001/api/cakes/${userCake.id}`);
+      console.log('ðŸ“¤ å‘é€PUTè¯·æ±‚åˆ°:', `http://localhost:5001/api/cakes/${userCake.id}`);
 
       const res = await fetch(`http://localhost:5001/api/cakes/${userCake.id}`, {
         method: 'PUT',
@@ -196,26 +196,26 @@ const Dashboard = () => {
         body: formData,
       });
 
-      console.log('📥 收到响应:', res.status, res.statusText);
+      console.log('ðŸ“¥ æ”¶åˆ°å“åº”:', res.status, res.statusText);
 
       if (res.ok) {
         const data = await res.json();
-        console.log('✅ 编辑成功:', data);
+        console.log('âœ… ç¼–è¾‘æˆåŠŸ:', data);
         setUserCake(data.cake);
         setUpdating(false);
         setSelectedFile(null);
-        setEditing(false); // 关闭编辑对话框
+        setEditing(false); // å…³é—­ç¼–è¾‘å¯¹è¯æ¡†
         toast({
           title: "Cake Updated Successfully",
           description: "Your cake details have been updated in the database",
         });
       } else {
         const errorData = await res.json();
-        console.error('❌ 编辑失败:', errorData);
+        console.error('âŒ ç¼–è¾‘å¤±è´¥:', errorData);
         throw new Error(errorData.error || 'Failed to update cake');
       }
     } catch (error) {
-      console.error('❌ 编辑过程中出错:', error);
+      console.error('âŒ ç¼–è¾‘è¿‡ç¨‹ä¸­å‡ºé”™:', error);
       toast({
         title: "Update Failed",
         description: error instanceof Error ? error.message : "An error occurred while updating the cake",
@@ -302,7 +302,7 @@ const Dashboard = () => {
             }
           `}
         >
-          {isOccupied ? '❌' : i}
+          {isOccupied ? 'âŒ' : i}
         </button>
       );
     }
@@ -319,8 +319,8 @@ const Dashboard = () => {
           </p>
         )}
         <div className="text-xs text-muted-foreground">
-          <p>• Available seats are numbered</p>
-          <p>• Occupied seats show ❌ and are disabled</p>
+          <p>â€¢ Available seats are numbered</p>
+          <p>â€¢ Occupied seats show âŒ and are disabled</p>
         </div>
       </div>
     );
@@ -731,6 +731,8 @@ const Dashboard = () => {
       </div>
     );
   }
+
+
   const steps = [
     { id: "registration", title: "Registration & Payment", description: "Registration and payment completed successfully", icon: <CheckCircle2 className="h-6 w-6 text-green-500" />, link: "#", status: "completed" },
     {
@@ -746,7 +748,7 @@ const Dashboard = () => {
     {
       id: "checkin",
       title: "Event Check-in",
-      description: "Check in instantly once you arrive — no page redirect",
+      description: "Check in instantly once you arrive â€” no page redirect",
       icon: <MapPin className="h-6 w-6" />,
       link: "/checkin",
       status: userProgress.cakeUpload.completed ? userProgress.checkin.status : "locked"
@@ -762,7 +764,7 @@ const Dashboard = () => {
     {
       id: "checkout",
       title: "Event Check-out",
-      description: "Check out instantly after voting — no redirect",
+      description: "Check out instantly after voting â€” no redirect",
       icon: <CheckCircle className="h-6 w-6" />,
       link: "/checkin",
       status: userProgress.voting.completed ? userProgress.checkout.status : "locked",
@@ -1177,15 +1179,15 @@ const Dashboard = () => {
                 >
                   {step.status === "completed" ? (
                     step.id === "registration" ? (
-                      <span>🍰 Registered & Paid Successfully 🎉</span>
+                      <span>ðŸ° Registered & Paid Successfully ðŸŽ‰</span>
                     ) : step.id === "cakeUpload" ? (
-                      <span>🍰 Cake Uploaded Successfully 🎉</span>
+                      <span>ðŸ° Cake Uploaded Successfully ðŸŽ‰</span>
                     ) : step.id === "checkin" ? (
-                      <span>✅ Checked In Successfully 🎉</span>
+                      <span>âœ… Checked In Successfully ðŸŽ‰</span>
                     ) : step.id === "voting" ? (
-                      <span>🗳️ Voting Completed 🎉</span>
+                      <span>ðŸ—³ï¸ Voting Completed ðŸŽ‰</span>
                     ) : step.id === 'checkout' ? (
-                      <span>👋 Checked Out 🎉</span>
+                      <span>ðŸ‘‹ Checked Out ðŸŽ‰</span>
                     ) : (
                       <span>Completed</span>
                     )
@@ -1214,5 +1216,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
-
