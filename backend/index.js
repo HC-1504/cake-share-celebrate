@@ -959,54 +959,68 @@ app.post('/api/checkin', auth, async (req, res) => {
 
 // --- Check-in/out Routes ---
 
-// Check-in
+// --- Check-in/out Routes ---
+// ✅ Check-in
 app.post('/api/checkin', auth, async (req, res) => {
   try {
     const { txHash, wallet } = req.body;
     const user = await User.findByPk(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Require a cake uploaded before check-in
+    if (!user) {
+      console.warn("Check-in failed: User not found", req.user.id);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // ✅ Require cake upload
     const cake = await Cake.findOne({ where: { UserId: user.id } });
     if (!cake) {
+      console.warn("Check-in failed: No cake uploaded by user", user.id);
       return res.status(400).json({ error: 'Please upload your cake before check-in' });
     }
 
     if (user.checkedIn) {
+      console.log("User already checked in:", user.id);
       return res.status(200).json({ message: 'Already checked in', checkedIn: true });
     }
 
     await user.update({
       checkedIn: true,
-      txHash,          // store blockchain transaction hash
-      ethAddress: wallet // store wallet used for check-in
+      txHash,
+      ethAddress: wallet
     });
 
+    console.log("✅ User checked in:", user.id, "tx:", txHash);
     res.json({ message: 'Checked in successfully', checkedIn: true, txHash });
   } catch (error) {
-    console.error('Error during check-in:', error);
-    res.status(500).json({ error: 'Failed to check in' });
+    console.error('❌ Error during check-in:', error);
+    res.status(500).json({ error: 'Failed to check in', details: error.message });
   }
 });
 
-// Check-out
+
+// ✅ Check-out
 app.post('/api/checkout', auth, async (req, res) => {
   try {
     const { txHash, wallet } = req.body;
     const user = await User.findByPk(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (!user) {
+      console.warn("Check-out failed: User not found", req.user.id);
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     if (!user.checkedIn) {
+      console.warn("Check-out failed: User not checked in", user.id);
       return res.status(400).json({ error: 'You must check in first' });
     }
 
-    // Check if user has voted for both categories
+    // ✅ Ensure user voted in both categories
     const votes = await Vote.findAll({
       where: { voterAddress: user.ethAddress || wallet || '' },
       attributes: ['category']
     });
 
-    const votedCategories = votes.map(vote => vote.category);
+    const votedCategories = votes.map(v => v.category);
     const hasVotedBeautiful = votedCategories.includes('beautiful');
     const hasVotedDelicious = votedCategories.includes('delicious');
 
@@ -1015,6 +1029,7 @@ app.post('/api/checkout', auth, async (req, res) => {
       if (!hasVotedBeautiful) missingCategories.push('Most Beautiful');
       if (!hasVotedDelicious) missingCategories.push('Most Delicious');
 
+      console.warn("Check-out blocked: Missing votes", missingCategories);
       return res.status(400).json({
         error: `Please vote for ${missingCategories.join(' and ')} before checking out`
       });
@@ -1022,36 +1037,18 @@ app.post('/api/checkout', auth, async (req, res) => {
 
     await user.update({
       checkedIn: false,
-      txHash,          // record blockchain tx for checkout
+      txHash,
       ethAddress: wallet
     });
 
+    console.log("✅ User checked out:", user.id, "tx:", txHash);
     res.json({ message: 'Checked out successfully', checkedIn: false, txHash });
   } catch (error) {
-    console.error('Error during check-out:', error);
-    res.status(500).json({ error: 'Failed to check out' });
+    console.error('❌ Error during check-out:', error);
+    res.status(500).json({ error: 'Failed to check out', details: error.message });
   }
 });
 
-// Simple test route
-app.get('/api', (req, res) => res.send('CakePicnic API is running!'));
-
-// Debug endpoint to check votes
-app.get('/api/debug/votes', async (req, res) => {
-  try {
-    const votes = await Vote.findAll({
-      attributes: ['id', 'category', 'blockchainTxHash', 'voterAddress', 'UserId', 'CakeId', 'createdAt'],
-      include: [
-        { model: User, attributes: ['id', 'firstName', 'lastName', 'email'] },
-        { model: Cake, attributes: ['id', 'title'] }
-      ]
-    });
-    res.json(votes);
-  } catch (error) {
-    console.error('Error fetching debug votes:', error);
-    res.status(500).json({ error: 'Failed to fetch votes' });
-  }
-});
 
 
 // Simple test route
