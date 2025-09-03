@@ -1,4 +1,3 @@
-
 // backend/models/user.js
 
 // Use 'import' instead of 'require'
