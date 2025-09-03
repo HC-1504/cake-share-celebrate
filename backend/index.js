@@ -957,15 +957,20 @@ app.post('/api/checkin', auth, async (req, res) => {
 });
 
 
+// --- Check-in/out Routes ---
+
+// Check-in
 app.post('/api/checkin', auth, async (req, res) => {
   try {
-    const { txHash, wallet } = req.body; // ⬅️ get blockchain tx + wallet
+    const { txHash, wallet } = req.body;
     const user = await User.findByPk(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     // Require a cake uploaded before check-in
     const cake = await Cake.findOne({ where: { UserId: user.id } });
-    if (!cake) return res.status(400).json({ error: 'Please upload your cake before check-in' });
+    if (!cake) {
+      return res.status(400).json({ error: 'Please upload your cake before check-in' });
+    }
 
     if (user.checkedIn) {
       return res.status(200).json({ message: 'Already checked in', checkedIn: true });
@@ -973,8 +978,8 @@ app.post('/api/checkin', auth, async (req, res) => {
 
     await user.update({
       checkedIn: true,
-      txHash,          // ⬅️ store blockchain transaction hash
-      ethAddress: wallet // ⬅️ store wallet used for check-in
+      txHash,          // store blockchain transaction hash
+      ethAddress: wallet // store wallet used for check-in
     });
 
     res.json({ message: 'Checked in successfully', checkedIn: true, txHash });
@@ -984,13 +989,16 @@ app.post('/api/checkin', auth, async (req, res) => {
   }
 });
 
+// Check-out
 app.post('/api/checkout', auth, async (req, res) => {
   try {
-    const { txHash, wallet } = req.body; // ⬅️ blockchain info
+    const { txHash, wallet } = req.body;
     const user = await User.findByPk(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    if (!user.checkedIn) return res.status(400).json({ error: 'You must check in first' });
+    if (!user.checkedIn) {
+      return res.status(400).json({ error: 'You must check in first' });
+    }
 
     // Check if user has voted for both categories
     const votes = await Vote.findAll({
@@ -1014,8 +1022,8 @@ app.post('/api/checkout', auth, async (req, res) => {
 
     await user.update({
       checkedIn: false,
-      txHash,          // ⬅️ record blockchain tx for checkout
-      ethAddress: wallet // ⬅️ confirm wallet used
+      txHash,          // record blockchain tx for checkout
+      ethAddress: wallet
     });
 
     res.json({ message: 'Checked out successfully', checkedIn: false, txHash });
@@ -1025,6 +1033,25 @@ app.post('/api/checkout', auth, async (req, res) => {
   }
 });
 
+// Simple test route
+app.get('/api', (req, res) => res.send('CakePicnic API is running!'));
+
+// Debug endpoint to check votes
+app.get('/api/debug/votes', async (req, res) => {
+  try {
+    const votes = await Vote.findAll({
+      attributes: ['id', 'category', 'blockchainTxHash', 'voterAddress', 'UserId', 'CakeId', 'createdAt'],
+      include: [
+        { model: User, attributes: ['id', 'firstName', 'lastName', 'email'] },
+        { model: Cake, attributes: ['id', 'title'] }
+      ]
+    });
+    res.json(votes);
+  } catch (error) {
+    console.error('Error fetching debug votes:', error);
+    res.status(500).json({ error: 'Failed to fetch votes' });
+  }
+});
 
 
 // Simple test route
