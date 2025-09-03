@@ -123,7 +123,7 @@ const Checkin = () => {
   const handleCheckin = async () => {
     setError("");
     try {
-      const txHash = await writeContractAsync({
+      const hash = await writeContractAsync({
         address: checkInOutAddress[holesky.id], // ✅ correct contract
         abi: checkInOutABI,
         functionName: "checkIn",                // ✅ must exist in CheckInOut.sol
@@ -165,7 +165,7 @@ const Checkin = () => {
     }
 
     try {
-      const txHash = await writeContractAsync({
+      const hash = await writeContractAsync({
         address: checkInOutAddress[holesky.id],
         abi: checkInOutABI,
         functionName: "checkOut", // ✅ must exist in CheckInOut.sol
