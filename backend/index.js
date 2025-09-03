@@ -929,43 +929,9 @@ app.post('/api/reset-password', async (req, res) => {
 
 // --- Check-in/out Routes ---
 // Get current check-in status
-app.get('/api/checkin/status', auth, async (req, res) => {
-  try {
-    const user = await User.findByPk(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    // Check voting status from database (for reference)
-    const votes = await Vote.findAll({
-      where: { voterAddress: user.walletAddress || '' },
-      attributes: ['category']
-    });
-
-    const votedCategories = votes.map(vote => vote.category);
-    const hasVotedBeautifulDB = votedCategories.includes('beautiful');
-    const hasVotedDeliciousDB = votedCategories.includes('delicious');
-
-    // For now, we'll use database votes but indicate if blockchain might have more
-    // In a full implementation, we'd check the blockchain directly here
-    const hasVotedBoth = hasVotedBeautifulDB && hasVotedDeliciousDB;
-
-    res.json({
-      checkedIn: user.checkedIn || false,
-      status: user.checkedIn ? 'in' : 'none',
-      voting: {
-        beautiful: hasVotedBeautifulDB,
-        delicious: hasVotedDeliciousDB,
-        both: hasVotedBoth
-      },
-      walletAddress: user.walletAddress // Include wallet address for frontend blockchain checks
-    });
-  } catch (error) {
-    console.error('Error getting check-in status:', error);
-    res.status(500).json({ error: 'Failed to get status' });
-  }
-});
-
 app.post('/api/checkin', auth, async (req, res) => {
   try {
+    const { txHash, wallet } = req.body; // ⬅️ get blockchain tx + wallet
     const user = await User.findByPk(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -973,10 +939,45 @@ app.post('/api/checkin', auth, async (req, res) => {
     const cake = await Cake.findOne({ where: { UserId: user.id } });
     if (!cake) return res.status(400).json({ error: 'Please upload your cake before check-in' });
 
-    if (user.checkedIn) return res.status(200).json({ message: 'Already checked in', checkedIn: true });
+    if (user.checkedIn) {
+      return res.status(200).json({ message: 'Already checked in', checkedIn: true });
+    }
 
-    await user.update({ checkedIn: true });
-    res.json({ message: 'Checked in successfully', checkedIn: true });
+    await user.update({
+      checkedIn: true,
+      txHash,          // ⬅️ store blockchain transaction hash
+      ethAddress: wallet // ⬅️ store wallet used for check-in
+    });
+
+    res.json({ message: 'Checked in successfully', checkedIn: true, txHash });
+  } catch (error) {
+    console.error('Error during check-in:', error);
+    res.status(500).json({ error: 'Failed to check in' });
+  }
+});
+
+
+app.post('/api/checkin', auth, async (req, res) => {
+  try {
+    const { txHash, wallet } = req.body; // ⬅️ get blockchain tx + wallet
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Require a cake uploaded before check-in
+    const cake = await Cake.findOne({ where: { UserId: user.id } });
+    if (!cake) return res.status(400).json({ error: 'Please upload your cake before check-in' });
+
+    if (user.checkedIn) {
+      return res.status(200).json({ message: 'Already checked in', checkedIn: true });
+    }
+
+    await user.update({
+      checkedIn: true,
+      txHash,          // ⬅️ store blockchain transaction hash
+      ethAddress: wallet // ⬅️ store wallet used for check-in
+    });
+
+    res.json({ message: 'Checked in successfully', checkedIn: true, txHash });
   } catch (error) {
     console.error('Error during check-in:', error);
     res.status(500).json({ error: 'Failed to check in' });
@@ -985,6 +986,7 @@ app.post('/api/checkin', auth, async (req, res) => {
 
 app.post('/api/checkout', auth, async (req, res) => {
   try {
+    const { txHash, wallet } = req.body; // ⬅️ blockchain info
     const user = await User.findByPk(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -992,7 +994,7 @@ app.post('/api/checkout', auth, async (req, res) => {
 
     // Check if user has voted for both categories
     const votes = await Vote.findAll({
-      where: { voterAddress: user.walletAddress || '' },
+      where: { voterAddress: user.ethAddress || wallet || '' },
       attributes: ['category']
     });
 
@@ -1010,13 +1012,19 @@ app.post('/api/checkout', auth, async (req, res) => {
       });
     }
 
-    await user.update({ checkedIn: false });
-    res.json({ message: 'Checked out successfully', checkedIn: false });
+    await user.update({
+      checkedIn: false,
+      txHash,          // ⬅️ record blockchain tx for checkout
+      ethAddress: wallet // ⬅️ confirm wallet used
+    });
+
+    res.json({ message: 'Checked out successfully', checkedIn: false, txHash });
   } catch (error) {
     console.error('Error during check-out:', error);
     res.status(500).json({ error: 'Failed to check out' });
   }
 });
+
 
 
 // Simple test route
