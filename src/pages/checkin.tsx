@@ -14,6 +14,9 @@ import { checkInOutABI, checkInOutAddress } from "@/config/contracts";
 import { holesky } from "wagmi/chains";
 import { useToast } from "@/hooks/use-toast";
 
+// ⏰ New: date & time inputs
+import { Input } from "@/components/ui/input";
+
 const CheckIn = () => {
   const { isAuthenticated, token } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -34,6 +37,10 @@ const CheckIn = () => {
       hash: pendingTx?.hash,
     });
 
+  // 🆕 Date + time states
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+
   // Trigger DB save after blockchain confirms
   useEffect(() => {
     if (isConfirmed && pendingTx) {
@@ -51,6 +58,8 @@ const CheckIn = () => {
             body: JSON.stringify({
               txHash: pendingTx.hash,
               wallet: address,
+              date,
+              time, // ⏰ send date + time to backend
             }),
           });
 
@@ -75,10 +84,13 @@ const CheckIn = () => {
 
       saveToDb();
     }
-  }, [isConfirmed, pendingTx, address, token, toast]);
+  }, [isConfirmed, pendingTx, address, token, toast, date, time]);
 
   // Shared helper
-  const executeTx = async (fn: "checkIn" | "checkOut", type: "checkin" | "checkout") => {
+  const executeTx = async (
+    fn: "checkIn" | "checkOut",
+    type: "checkin" | "checkout"
+  ) => {
     if (!address) {
       toast({
         title: "Wallet Not Connected",
@@ -101,13 +113,23 @@ const CheckIn = () => {
       }
     }
 
+    // 🚨 Make sure user picked date & time
+    if (type === "checkin" && (!date || !time)) {
+      toast({
+        title: "Missing Info",
+        description: "Please select date and time before check-in.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       toast({ title: "MetaMask", description: `Please confirm ${type}...` });
       const hash = await writeContractAsync({
         address: checkInOutAddress[holesky.id],
         abi: checkInOutABI,
         functionName: fn,
-        args: [],
+        args: [], // if your contract needs date/time, we can pass [date, time] here
         account: address,
         chain: holesky,
       });
@@ -133,6 +155,24 @@ const CheckIn = () => {
           <CardTitle>Event Check-In / Check-Out</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
+          {/* 🆕 Date + time inputs */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm">Select Date</label>
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm">Select Time</label>
+            <Input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+          </div>
+
           <Button
             variant="cake"
             disabled={isPending || isConfirming}
