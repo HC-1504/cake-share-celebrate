@@ -2,10 +2,6 @@
 // npm run dev -- --force
 // http://localhost:8081/
 
-// backend/index.js
-// npm run dev -- --force
-// http://localhost:8081/
-
 import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
@@ -18,20 +14,16 @@ import { emailConfig, emailTemplates } from './email-config.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
 
+
 // Load environment variables
 dotenv.config();
 
 // --- CORRECTED IMPORT SECTION ---
+// Import everything from models/index.js
 import { sequelize, User, Cake, Vote } from './models/index.js';
 import { Op } from 'sequelize';
 
 const app = express();
-
-// ✅ Add these lines
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
 
 // --- Essential Setup & Middleware ---
 
