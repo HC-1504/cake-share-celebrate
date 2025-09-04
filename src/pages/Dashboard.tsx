@@ -26,7 +26,15 @@ import {
 import { useAuth } from "@/App";
 import { Navigate } from "react-router-dom";
 import { useAccount, useWriteContract, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
-import { cakeUploadABI, cakeUploadAddress, eventRegistrationABI, eventRegistrationAddress } from '@/config/contracts';
+import { 
+  cakeUploadABI, 
+  cakeUploadAddress, 
+  eventRegistrationABI, 
+  eventRegistrationAddress, 
+  checkInOutABI,          // add this
+  checkInOutAddress       // add this
+} from '@/config/contracts';
+
 import { holesky } from 'wagmi/chains';
 import { publicClient } from '../config/web3';
 import { useToast } from '@/hooks/use-toast';
