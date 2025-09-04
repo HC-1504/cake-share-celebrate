@@ -990,13 +990,6 @@ export const checkInOutABI = [
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "checkOut",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"inputs": [
 			{
 				"internalType": "address",
@@ -1013,6 +1006,13 @@ export const checkInOutABI = [
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "checkOut",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
