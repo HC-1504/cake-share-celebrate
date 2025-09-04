@@ -561,7 +561,7 @@ const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({
   chainId: holesky.id,
 });
 
-const handleStartCheckIn = async () => {
+const handleCheckIn = async () => {
   if (!token || !address) return;
 
   try {
@@ -634,7 +634,7 @@ const { isSuccess: isCheckOutConfirmed } = useWaitForTransactionReceipt({
   chainId: holesky.id,
 });
 
-const handleStartCheckOut = async () => {
+const handleCheckOut = async () => {
   if (!token || !address) return;
 
   try {
@@ -1246,9 +1246,9 @@ useEffect(() => {
                   onClick={() => {
                     if (step.status !== 'pending') return;
                     if (step.id === 'checkin') {
-                      handleStartCheckIn();
+                      handleCheckIn();
                     } else if (step.id === 'checkout') {
-                      handleStartCheckOut();
+                      handleCheckOut();
                     }
                   }}
                   asChild={step.status === "pending" && (step.id === 'cakeUpload' || step.id === 'voting')}
