@@ -95,7 +95,7 @@ const Checkin = () => {
   // when blockchain confirms checkin → save to DB
   useEffect(() => {
     if (isCheckInConfirmed && checkInTxHash) {
-      const saveToDatabase = async () => {
+      const saveToDB = async () => {
         try {
           const token = localStorage.getItem("auth_token");
           const res = await fetch("http://localhost:5001/api/checkin", {
