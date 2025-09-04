@@ -554,74 +554,150 @@ const Dashboard = () => {
     fetchRegistrationEvent();
   }, [address, publicClient]);
 
-  const handleStartCheckIn = async () => {
-    if (!token) return;
-    try {
-      setIsCheckingIn(true);
-      const res = await fetch('/api/checkin', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to check in');
-      toast({ title: 'Checked in', description: 'Welcome to the event!' });
+  // ----------------------- CHECK-IN -----------------------
+const { writeContract: writeCheckIn, data: checkInTxHash, isPending: isCheckInPending } = useWriteContract();
+const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({
+  hash: checkInTxHash,
+  chainId: holesky.id,
+});
 
-      // Update user state to reflect check-in
-      setUser(prev => prev ? { ...prev, checkedIn: true } : prev);
+const handleStartCheckIn = async () => {
+  if (!token || !address) return;
 
-      // Update progress state
-      setUserProgress(prev => ({
-        ...prev,
-        checkin: { completed: true, status: 'completed' },
-        voting: { ...prev.voting, status: 'pending' },
-      }));
+  try {
+    setIsCheckingIn(true);
 
-      // Refresh voting status after check-in
+    // 1. Call smart contract checkIn()
+    writeCheckIn({
+      address: checkInOutAddress[holesky.id],
+      abi: checkInOutABI,
+      functionName: "checkIn",
+      args: [],
+      chain: holesky,
+      account: address,
+    });
+
+    toast({
+      title: "Check-in transaction sent",
+      description: "Waiting for blockchain confirmation...",
+    });
+  } catch (err) {
+    toast({
+      title: "Check-in failed",
+      description: err instanceof Error ? err.message : "Blockchain error",
+      variant: "destructive",
+    });
+    setIsCheckingIn(false);
+  }
+};
+
+// When tx is confirmed → update DB
+useEffect(() => {
+  if (isCheckInConfirmed && checkInTxHash) {
+    const saveCheckInToDB = async () => {
       try {
-        const votingRes = await fetch('/api/votes/my-status', {
+        const res = await fetch("/api/checkin", {
+          method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (votingRes.ok) {
-          const votingData = await votingRes.json();
-          setVotingStatus(votingData);
-          const bothDone = !!votingData.beautiful && !!votingData.delicious;
+
+        if (res.ok) {
+          toast({ title: "Checked in 🎉", description: "Welcome to the event!" });
+          setUser(prev => prev ? { ...prev, checkedIn: true } : prev);
           setUserProgress(prev => ({
             ...prev,
-            voting: { completed: bothDone, status: bothDone ? 'completed' : 'pending' },
-            checkout: { ...prev.checkout, status: bothDone ? 'pending' : 'locked' },
+            checkin: { completed: true, status: "completed" },
+            voting: { ...prev.voting, status: "pending" },
           }));
+        } else {
+          toast({
+            title: "DB update failed",
+            description: "Blockchain confirmed, but DB did not update",
+            variant: "destructive",
+          });
         }
       } catch (e) {
-        // ignore voting status fetch error
+        console.error("DB error:", e);
+      } finally {
+        setIsCheckingIn(false);
       }
-    } catch (e: any) {
-      toast({ title: 'Check-in failed', description: e.message, variant: 'destructive' });
-    } finally {
-      setIsCheckingIn(false);
-    }
-  };
+    };
 
-  const handleStartCheckOut = async () => {
-    if (!token) return;
-    try {
-      setIsCheckingOut(true);
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to check out');
-      toast({ title: 'Checked out', description: 'Thanks for joining!' });
-      setUserProgress(prev => ({
-        ...prev,
-        checkout: { completed: true, status: 'completed' },
-      }));
-    } catch (e: any) {
-      toast({ title: 'Check-out failed', description: e.message, variant: 'destructive' });
-    } finally {
-      setIsCheckingOut(false);
-    }
-  };
+    saveCheckInToDB();
+  }
+}, [isCheckInConfirmed, checkInTxHash]);
+
+// ----------------------- CHECK-OUT -----------------------
+const { writeContract: writeCheckOut, data: checkOutTxHash, isPending: isCheckOutPending } = useWriteContract();
+const { isSuccess: isCheckOutConfirmed } = useWaitForTransactionReceipt({
+  hash: checkOutTxHash,
+  chainId: holesky.id,
+});
+
+const handleStartCheckOut = async () => {
+  if (!token || !address) return;
+
+  try {
+    setIsCheckingOut(true);
+
+    // 1. Call smart contract checkOut()
+    writeCheckOut({
+      address: checkInOutAddress[holesky.id],
+      abi: checkInOutABI,
+      functionName: "checkOut",
+      args: [],
+      chain: holesky,
+      account: address,
+    });
+
+    toast({
+      title: "Check-out transaction sent",
+      description: "Waiting for blockchain confirmation...",
+    });
+  } catch (err) {
+    toast({
+      title: "Check-out failed",
+      description: err instanceof Error ? err.message : "Blockchain error",
+      variant: "destructive",
+    });
+    setIsCheckingOut(false);
+  }
+};
+
+// When tx is confirmed → update DB
+useEffect(() => {
+  if (isCheckOutConfirmed && checkOutTxHash) {
+    const saveCheckOutToDB = async () => {
+      try {
+        const res = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+          toast({ title: "Checked out 👋", description: "Thanks for joining!" });
+          setUserProgress(prev => ({
+            ...prev,
+            checkout: { completed: true, status: "completed" },
+          }));
+        } else {
+          toast({
+            title: "DB update failed",
+            description: "Blockchain confirmed, but DB did not update",
+            variant: "destructive",
+          });
+        }
+      } catch (e) {
+        console.error("DB error:", e);
+      } finally {
+        setIsCheckingOut(false);
+      }
+    };
+
+    saveCheckOutToDB();
+  }
+}, [isCheckOutConfirmed, checkOutTxHash]);
+
 
   // Update user cake when blockchain data changes
   useEffect(() => {
