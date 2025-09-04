@@ -750,7 +750,7 @@ const Dashboard = () => {
       title: "Event Check-in",
       description: "Check in instantly once you arrive — no page redirect",
       icon: <MapPin className="h-6 w-6" />,
-      link: "/CheckTime",
+      link: "/checkin",
       status: userProgress.cakeUpload.completed ? userProgress.checkin.status : "locked"
     },
     {
