@@ -6,6 +6,9 @@ import { Navigate, Link } from "react-router-dom";
 import { useAccount, useReadContract } from 'wagmi';
 import { cakeVotingABI, cakeVotingAddress } from '@/config/contracts';
 import { holesky } from 'wagmi/chains';
+import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { checkInOutABI, checkInOutAddress } from "@/config/contracts";
+
 
 const Checkin = () => {
   const { isAuthenticated } = useAuth();
@@ -22,6 +25,19 @@ const Checkin = () => {
     both: false
   });
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  
+   // ----------------- ADD THESE HOOKS HERE -----------------
+  const { writeContract: writeCheckIn, data: checkInTxHash, isPending: isCheckInPending } = useWriteContract();
+  const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({
+    hash: checkInTxHash,
+    chainId: holesky.id,
+  });
+
+  const { writeContract: writeCheckOut, data: checkOutTxHash, isPending: isCheckOutPending } = useWriteContract();
+  const { isSuccess: isCheckOutConfirmed } = useWaitForTransactionReceipt({
+    hash: checkOutTxHash,
+    chainId: holesky.id,
+  });
 
   // Update current date/time every second
   useEffect(() => {
@@ -105,57 +121,95 @@ const Checkin = () => {
     }
   }, [hasVotedBeautifulBlockchain, hasVotedDeliciousBlockchain]);
 
-  // Add check-in with date/time
-  const handleCheckin = async () => {
-    setError("");
+ // ----------------- Check-in -----------------
+const handleCheckin = async () => {
+  setError("");
 
-    // Optional: restrict check-in to certain hours (example: 9am to 5pm)
+  try {
+    // (Optional) restrict by time
     const hours = currentDateTime.getHours();
     if (hours < 9 || hours > 17) {
       setError("Check-in is only allowed between 09:00 and 17:00");
       return;
     }
 
-    try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch("http://localhost:5001/api/checkin", {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to check in");
+    // 1. Trigger smart contract
+    writeCheckIn({
+      address: checkInOutAddress[holesky.id],
+      abi: checkInOutABI,
+      functionName: "checkIn",
+      args: [],
+      chain: holesky,
+      account: address,
+    });
+  } catch (err: any) {
+    setError(err.message || "Blockchain check-in failed");
+  }
+};
+
+// When blockchain confirms → save to DB
+useEffect(() => {
+  if (isCheckInConfirmed && checkInTxHash) {
+    const saveToDB = async () => {
+      try {
+        const token = localStorage.getItem("auth_token");
+        const res = await fetch("http://localhost:5001/api/checkin", {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!res.ok) throw new Error("DB update failed");
+        setStatus("in");
+      } catch (err: any) {
+        setError(err.message || "Failed to update DB after check-in");
       }
-      setStatus('in');
-    } catch (err: any) {
-      setError(err.message || "Failed to check in");
-    }
-  };
+    };
+    saveToDB();
+  }
+}, [isCheckInConfirmed, checkInTxHash]);
 
-  const handleCheckout = async () => {
-    setError("");
+// ----------------- Check-out -----------------
+const handleCheckout = async () => {
+  setError("");
 
-    if (!votingStatus.both) {
-      setError("Please complete voting for both categories before checking out");
-      return;
-    }
+  if (!votingStatus.both) {
+    setError("Please complete voting for both categories before checking out");
+    return;
+  }
 
-    try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch("http://localhost:5001/api/checkout", {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to check out");
+  try {
+    // 1. Trigger smart contract
+    writeCheckOut({
+      address: checkInOutAddress[holesky.id],
+      abi: checkInOutABI,
+      functionName: "checkOut",
+      args: [],
+      chain: holesky,
+      account: address,
+    });
+  } catch (err: any) {
+    setError(err.message || "Blockchain check-out failed");
+  }
+};
+
+// When blockchain confirms → save to DB
+useEffect(() => {
+  if (isCheckOutConfirmed && checkOutTxHash) {
+    const saveToDB = async () => {
+      try {
+        const token = localStorage.getItem("auth_token");
+        const res = await fetch("http://localhost:5001/api/checkout", {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!res.ok) throw new Error("DB update failed");
+        setStatus("out");
+      } catch (err: any) {
+        setError(err.message || "Failed to update DB after check-out");
       }
-      setStatus('out');
-    } catch (err: any) {
-      setError(err.message || "Failed to check out");
-    }
-  };
-
+    };
+    saveToDB();
+  }
+}, [isCheckOutConfirmed, checkOutTxHash]);
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-background">
       <Card className="max-w-md w-full border-0 shadow-cake">
