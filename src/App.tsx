@@ -15,7 +15,6 @@ import UploadCake from "@/pages/upload-cake";
 import Voting from "@/pages/voting";
 import Results from "@/pages/Results";
 import Checkin from "@/pages/checkin";
-import CheckTime from "@/pages/CheckTime"
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import Test3D from "@/pages/Test3D";
@@ -88,7 +87,6 @@ const App = () => (
                 <Route path="/voting" element={<Voting />} />
                 <Route path="/results" element={<Results />} />
                 <Route path="/checkin" element={<Checkin />} />
-                <Route path="/checktime" element={<CheckTime />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/test-3d" element={<Test3D />} />
