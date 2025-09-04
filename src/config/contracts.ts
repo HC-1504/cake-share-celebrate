@@ -1075,5 +1075,5 @@ export const checkInOutABI = [
 ]
 
 export const checkInOutAddress = {
-  [holesky.id]: "0x0d1e0a5F287537A14E8B36d254894F6aE4fbfB55" as `0x${string}`,
+  [holesky.id]: '0x0d1e0a5F287537A14E8B36d254894F6aE4fbfB55' as `0x${string}`,
 };
