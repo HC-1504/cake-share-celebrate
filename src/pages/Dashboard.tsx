@@ -604,7 +604,7 @@ useEffect(() => {
   if (isCheckInConfirmed && checkInTxHash) {
     const saveCheckInToDB = async () => {
       try {
-        const res = await fetch("/api/checkin", {
+        const res = await fetch("http://localhost:5001/api/checkin", {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
