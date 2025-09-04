@@ -1072,8 +1072,8 @@ export const checkInOutABI = [
 		"stateMutability": "view",
 		"type": "function"
 	}
-] as const;
+]
 
 export const checkInOutAddress = {
-  [holesky.id]: "0x4d92E37Ad2E88B0bc27F8882743cf1550260A590" as `0x${string}`,
+  [holesky.id]: "0x5d1aa2725FD41000d821241DaCDB2Fa5F941FF1d" as `0x${string}`,
 };
