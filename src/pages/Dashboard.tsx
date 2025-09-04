@@ -1,6 +1,5 @@
 // Import the hooks and icons we need
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -554,29 +553,8 @@ const Dashboard = () => {
 
     fetchRegistrationEvent();
   }, [address, publicClient]);
-  
-const Dashboard = () => {
-  const navigate = useNavigate();
 
-  const handleStartCheckIn = () => {
-    // Instead of calling API here, just go to CheckTime page
-    navigate("/CheckTime");
-  };
-
-  return (
-    <div>
-      <button
-        onClick={handleStartCheckIn}
-        className="px-4 py-2 bg-blue-600 text-white rounded"
-      >
-        Start Check-In
-      </button>
-    </div>
-  );
-};
-
-  );
-};
+  const handleStartCheckIn = async () => {
     if (!token) return;
     try {
       setIsCheckingIn(true);
@@ -772,7 +750,7 @@ const Dashboard = () => {
       title: "Event Check-in",
       description: "Check in instantly once you arrive — no page redirect",
       icon: <MapPin className="h-6 w-6" />,
-      link: "/checkin",
+      link: "#?CheckTime",
       status: userProgress.cakeUpload.completed ? userProgress.checkin.status : "locked"
     },
     {
@@ -788,7 +766,7 @@ const Dashboard = () => {
       title: "Event Check-out",
       description: "Check out instantly after voting — no redirect",
       icon: <CheckCircle className="h-6 w-6" />,
-      link: "/checkin",
+      link: "#",
       status: userProgress.voting.completed ? userProgress.checkout.status : "locked",
     },
   ];
