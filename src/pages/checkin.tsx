@@ -92,66 +92,59 @@ const Checkin = () => {
     });
   };
 
-  // --- Save checkin to DB when blockchain confirms ---
-  useEffect(() => {
-    if (isCheckInConfirmed && checkInTxHash) {
-      const saveToDB = async () => {
-        try {
-          const token = localStorage.getItem("auth_token");
-          const res = await fetch("http://localhost:5001/api/checkin", {
-            method: "POST",
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          });
-          if (!res.ok) throw new Error("DB update failed");
-          setStatus("in");
-        } catch (err: any) {
-          setError(err.message || "Failed to update DB after check-in");
-        }
-      };
-      saveToDB();
-    }
-  }, [isCheckInConfirmed, checkInTxHash]);
+// --- Save checkin to DB when blockchain confirms ---
+useEffect(() => {
+  if (isCheckInConfirmed && checkInTxHash) {
+    const saveToDB = async () => {
+      try {
+        const token = localStorage.getItem("auth_token");
+        const res = await fetch("http://localhost:5001/api/checkin", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            txHash: checkInTxHash,
+            wallet: address,
+          }),
+        });
+        if (!res.ok) throw new Error("DB update failed");
+        setStatus("in");
+      } catch (err: any) {
+        setError(err.message || "Failed to update DB after check-in");
+      }
+    };
+    saveToDB();
+  }
+}, [isCheckInConfirmed, checkInTxHash, address]);
 
-  // --- Checkout handler ---
-  const handleCheckout = () => {
-    setError("");
-    if (!votingStatus.both) {
-      setError("Please complete voting before checking out");
-      return;
-    }
-    if (!address) {
-      setError("Please connect your wallet first");
-      return;
-    }
-    writeCheckOut({
-      address: checkInOutAddress[holesky.id],
-      abi: checkInOutABI,
-      functionName: "checkOut",
-      args: [],
-      chain: holesky,
-      account: address,
-    });
-  };
-
-  // --- Save checkout to DB when blockchain confirms ---
-  useEffect(() => {
-    if (isCheckOutConfirmed && checkOutTxHash) {
-      const saveToDB = async () => {
-        try {
-          const token = localStorage.getItem("auth_token");
-          const res = await fetch("http://localhost:5001/api/checkout", {
-            method: "POST",
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          });
-          if (!res.ok) throw new Error("DB update failed");
-          setStatus("out");
-        } catch (err: any) {
-          setError(err.message || "Failed to update DB after check-out");
-        }
-      };
-      saveToDB();
-    }
-  }, [isCheckOutConfirmed, checkOutTxHash]);
+// --- Save checkout to DB when blockchain confirms ---
+useEffect(() => {
+  if (isCheckOutConfirmed && checkOutTxHash) {
+    const saveToDB = async () => {
+      try {
+        const token = localStorage.getItem("auth_token");
+        const res = await fetch("http://localhost:5001/api/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            txHash: checkOutTxHash,
+            wallet: address,
+          }),
+        });
+        if (!res.ok) throw new Error("DB update failed");
+        setStatus("out");
+      } catch (err: any) {
+        setError(err.message || "Failed to update DB after check-out");
+      }
+    };
+    saveToDB();
+  }
+}, [isCheckOutConfirmed, checkOutTxHash, address]);
 
   // --- Blockchain loading indicator ---
   useEffect(() => {
