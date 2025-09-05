@@ -651,7 +651,7 @@ const { isSuccess: isCheckOutConfirmed } = useWaitForTransactionReceipt({
 });
 
 const handleCheckOut = async () => {
-  if (!token || !address) return;
+  if (!address) return;
 
   try {
     setIsCheckingOut(true);
@@ -680,47 +680,23 @@ const handleCheckOut = async () => {
   }
 };
 
-// When tx is confirmed → update DB
+// When tx is confirmed → just update local state & toast
 useEffect(() => {
   if (isCheckOutConfirmed && checkOutTxHash) {
-    const saveCheckOutToDB = async () => {
-      try {
-        const res = await fetch("http://localhost:5001/api/checkout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            txHash: checkOutTxHash,
-            wallet: address,
-          }),
-        });
+    toast({
+      title: "Checked out 👋",
+      description: "See you again!",
+    });
 
-        if (res.ok) {
-          toast({ title: "Checked out 👋", description: "Thanks for joining!" });
-          setUserProgress(prev => ({
-            ...prev,
-            checkout: { completed: true, status: "completed" },
-          }));
-        } else {
-          toast({
-            title: "DB update failed",
-            description: "Blockchain confirmed, but DB did not update",
-            variant: "destructive",
-          });
-        }
-      } catch (e) {
-        console.error("DB error:", e);
-      } finally {
-        setIsCheckingOut(false);
-      }
-    };
+    // Example: mark checkout complete in local state
+    setUserProgress(prev => ({
+      ...prev,
+      checkout: { completed: true, status: "completed" },
+    }));
 
-    saveCheckOutToDB();
+    setIsCheckingOut(false);
   }
-}, [isCheckOutConfirmed, checkOutTxHash, token, address]);
-
+}, [isCheckOutConfirmed, checkOutTxHash]);
 
   // Update user cake when blockchain data changes
   useEffect(() => {
