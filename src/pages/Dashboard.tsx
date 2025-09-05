@@ -606,7 +606,14 @@ useEffect(() => {
       try {
         const res = await fetch("http://localhost:5001/api/checkin", {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            txHash: checkInTxHash,
+            wallet: address,
+          }),
         });
 
         if (res.ok) {
@@ -633,7 +640,8 @@ useEffect(() => {
 
     saveCheckInToDB();
   }
-}, [isCheckInConfirmed, checkInTxHash]);
+}, [isCheckInConfirmed, checkInTxHash, token, address]);
+
 
 // ----------------------- CHECK-OUT -----------------------
 const { writeContract: writeCheckOut, data: checkOutTxHash, isPending: isCheckOutPending } = useWriteContract();
@@ -677,9 +685,16 @@ useEffect(() => {
   if (isCheckOutConfirmed && checkOutTxHash) {
     const saveCheckOutToDB = async () => {
       try {
-        const res = await fetch("/api/checkout", {
+        const res = await fetch("http://localhost:5001/api/checkout", {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            txHash: checkOutTxHash,
+            wallet: address,
+          }),
         });
 
         if (res.ok) {
@@ -704,7 +719,7 @@ useEffect(() => {
 
     saveCheckOutToDB();
   }
-}, [isCheckOutConfirmed, checkOutTxHash]);
+}, [isCheckOutConfirmed, checkOutTxHash, token, address]);
 
 
   // Update user cake when blockchain data changes
