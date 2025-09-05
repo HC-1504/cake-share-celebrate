@@ -48,7 +48,6 @@ const Checkin = () => {
 
   const [checkInTime, setCheckInTime] = useState<{ date: string; time: string } | null>(null);
   const [checkOutTime, setCheckOutTime] = useState<Date | null>(null);
-  const [timeLeft, setTimeLeft] = useState<string>("");
 
   const { writeContract: writeCheckIn, data: checkInTxHash } = useWriteContract();
   const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({
@@ -216,26 +215,6 @@ const Checkin = () => {
     }
   }, [address, isLoadingBeautiful, isLoadingDelicious]);
 
-  // countdown effect
-  useEffect(() => {
-    if (!checkOutTime) return;
-    const interval = setInterval(() => {
-      const now = new Date();
-      const diff = checkOutTime.getTime() - now.getTime();
-
-      if (diff <= 0) {
-        setTimeLeft("Expired");
-        clearInterval(interval);
-      } else {
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        setTimeLeft(`${hours}h ${minutes}m ${seconds}s left`);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [checkOutTime]);
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-background">
       <Card className="max-w-md w-full border-0 shadow-cake">
@@ -285,9 +264,6 @@ const Checkin = () => {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
-                        </div>
-                        <div className="mt-2 text-blue-600 text-lg font-bold">
-                          {timeLeft}
                         </div>
                       </div>
                     )}
