@@ -26,15 +26,7 @@ import {
 import { useAuth } from "@/App";
 import { Navigate } from "react-router-dom";
 import { useAccount, useWriteContract, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
-import { 
-  cakeUploadABI, 
-  cakeUploadAddress, 
-  eventRegistrationABI, 
-  eventRegistrationAddress, 
-  checkInOutABI,          // add this
-  checkInOutAddress       // add this
-} from '@/config/contracts';
-
+import { cakeUploadABI, cakeUploadAddress, eventRegistrationABI, eventRegistrationAddress } from '@/config/contracts';
 import { holesky } from 'wagmi/chains';
 import { publicClient } from '../config/web3';
 import { useToast } from '@/hooks/use-toast';
@@ -562,150 +554,74 @@ const Dashboard = () => {
     fetchRegistrationEvent();
   }, [address, publicClient]);
 
- // ----------------------- CHECK-IN -----------------------
-const { writeContract: writeCheckIn, data: checkInTxHash, isPending: isCheckInPending } = useWriteContract();
-const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({
-  hash: checkInTxHash,
-  chainId: holesky.id,
-});
+  const handleStartCheckIn = async () => {
+    if (!token) return;
+    try {
+      setIsCheckingIn(true);
+      const res = await fetch('/api/checkin', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to check in');
+      toast({ title: 'Checked in', description: 'Welcome to the event!' });
 
-const handleCheckIn = async () => {
-  if (!token || !address) return;
+      // Update user state to reflect check-in
+      setUser(prev => prev ? { ...prev, checkedIn: true } : prev);
 
-  try {
-    setIsCheckingIn(true);
+      // Update progress state
+      setUserProgress(prev => ({
+        ...prev,
+        checkin: { completed: true, status: 'completed' },
+        voting: { ...prev.voting, status: 'pending' },
+      }));
 
-    // 1. Call smart contract checkIn()
-    writeCheckIn({
-      address: checkInOutAddress[holesky.id],
-      abi: checkInOutABI,
-      functionName: "checkIn",
-      args: [],
-      chain: holesky,
-      account: address,
-    });
-
-    toast({
-      title: "Check-in transaction sent",
-      description: "Waiting for blockchain confirmation...",
-    });
-  } catch (err) {
-    toast({
-      title: "Check-in failed",
-      description: err instanceof Error ? err.message : "Blockchain error",
-      variant: "destructive",
-    });
-    setIsCheckingIn(false);
-  }
-};
-
-// When tx is confirmed → update DB and show check-in time
-useEffect(() => {
-  if (isCheckInConfirmed && checkInTxHash) {
-    const saveCheckInToDB = async () => {
-      const checkInDate = new Date(); // Capture current timestamp
+      // Refresh voting status after check-in
       try {
-        const res = await fetch("http://localhost:5001/api/checkin", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            txHash: checkInTxHash,
-            wallet: address,
-            checkInAt: checkInDate.toISOString(), // send timestamp to backend
-          }),
+        const votingRes = await fetch('/api/votes/my-status', {
+          headers: { Authorization: `Bearer ${token}` },
         });
-
-        if (res.ok) {
-          toast({
-            title: "Checked in 🎉",
-            description: `You checked in at ${checkInDate.toLocaleTimeString()}`, // show friendly message
-          });
-
-          // update local state to show in UI
-          setUser(prev => prev ? { ...prev, checkedIn: true } : prev);
+        if (votingRes.ok) {
+          const votingData = await votingRes.json();
+          setVotingStatus(votingData);
+          const bothDone = !!votingData.beautiful && !!votingData.delicious;
           setUserProgress(prev => ({
             ...prev,
-            checkin: { completed: true, status: "completed" },
-            voting: { ...prev.voting, status: "pending" },
+            voting: { completed: bothDone, status: bothDone ? 'completed' : 'pending' },
+            checkout: { ...prev.checkout, status: bothDone ? 'pending' : 'locked' },
           }));
-          setCheckInTime(checkInDate.toLocaleString()); // store timestamp in state
-        } else {
-          toast({
-            title: "DB update failed",
-            description: "Blockchain confirmed, but DB did not update",
-            variant: "destructive",
-          });
         }
       } catch (e) {
-        console.error("DB error:", e);
-      } finally {
-        setIsCheckingIn(false);
+        // ignore voting status fetch error
       }
-    };
+    } catch (e: any) {
+      toast({ title: 'Check-in failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
 
-    saveCheckInToDB();
-  }
-}, [isCheckInConfirmed, checkInTxHash, token, address]);
-
-
-
-// ----------------------- CHECK-OUT -----------------------
-const { writeContract: writeCheckOut, data: checkOutTxHash, isPending: isCheckOutPending } = useWriteContract();
-const { isSuccess: isCheckOutConfirmed } = useWaitForTransactionReceipt({
-  hash: checkOutTxHash,
-  chainId: holesky.id,
-});
-
-const handleCheckOut = async () => {
-  if (!address) return;
-
-  try {
-    setIsCheckingOut(true);
-
-    // 1. Call smart contract checkOut()
-    writeCheckOut({
-      address: checkInOutAddress[holesky.id],
-      abi: checkInOutABI,
-      functionName: "checkOut",
-      args: [],
-      chain: holesky,
-      account: address,
-    });
-
-    toast({
-      title: "Check-out transaction sent",
-      description: "Waiting for blockchain confirmation...",
-    });
-  } catch (err) {
-    toast({
-      title: "Check-out failed",
-      description: err instanceof Error ? err.message : "Blockchain error",
-      variant: "destructive",
-    });
-    setIsCheckingOut(false);
-  }
-};
-
-// When tx is confirmed → just update local state & toast
-useEffect(() => {
-  if (isCheckOutConfirmed && checkOutTxHash) {
-    toast({
-      title: "Checked out 👋",
-      description: "See you again!",
-    });
-
-    // Example: mark checkout complete in local state
-    setUserProgress(prev => ({
-      ...prev,
-      checkout: { completed: true, status: "completed" },
-    }));
-
-    setIsCheckingOut(false);
-  }
-}, [isCheckOutConfirmed, checkOutTxHash]);
+  const handleStartCheckOut = async () => {
+    if (!token) return;
+    try {
+      setIsCheckingOut(true);
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to check out');
+      toast({ title: 'Checked out', description: 'Thanks for joining!' });
+      setUserProgress(prev => ({
+        ...prev,
+        checkout: { completed: true, status: 'completed' },
+      }));
+    } catch (e: any) {
+      toast({ title: 'Check-out failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
 
   // Update user cake when blockchain data changes
   useEffect(() => {
@@ -834,7 +750,7 @@ useEffect(() => {
       title: "Event Check-in",
       description: "Check in instantly once you arrive — no page redirect",
       icon: <MapPin className="h-6 w-6" />,
-      link: "/checkin",
+      link: "#",
       status: userProgress.cakeUpload.completed ? userProgress.checkin.status : "locked"
     },
     {
@@ -1254,9 +1170,9 @@ useEffect(() => {
                   onClick={() => {
                     if (step.status !== 'pending') return;
                     if (step.id === 'checkin') {
-                      handleCheckIn();
+                      handleStartCheckIn();
                     } else if (step.id === 'checkout') {
-                      handleCheckOut();
+                      handleStartCheckOut();
                     }
                   }}
                   asChild={step.status === "pending" && (step.id === 'cakeUpload' || step.id === 'voting')}
