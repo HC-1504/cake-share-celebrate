@@ -7,6 +7,28 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { cakeVotingABI, cakeVotingAddress, checkInOutABI, checkInOutAddress } from '@/config/contracts';
 import { holesky } from 'wagmi/chains';
 
+// --- Tier visuals ---
+const TIER_VISUALS: { [key: string]: { emoji: string; description: string; duration: string } } = {
+  "Normal": { emoji: '🍰', description: 'Basic entry access', duration: '2 hours' },
+  "Premium": { emoji: '🎂', description: 'Extended entry duration', duration: '3 hours' },
+  "Family": { emoji: '👨‍👩‍👧‍👦', description: 'Family entry access (up to 5 people)', duration: '2.5 hours' },
+  "PremiumFamily": { emoji: '👑', description: 'Extended family entry duration (up to 7 people)', duration: '4 hours' }
+};
+
+// --- Helper to add duration to Date ---
+function addDuration(start: Date, duration: string): Date {
+  const [amount, unit] = duration.split(" ");
+  const num = parseFloat(amount);
+  const end = new Date(start);
+
+  if (unit.startsWith("hour")) {
+    end.setMinutes(end.getMinutes() + num * 60);
+  } else if (unit.startsWith("minute")) {
+    end.setMinutes(end.getMinutes() + num);
+  }
+  return end;
+}
+
 const Checkin = () => {
   const { isAuthenticated } = useAuth();
   const { address } = useAccount();
@@ -21,6 +43,11 @@ const Checkin = () => {
     delicious: false,
     both: false
   });
+
+  // --- New: check-in info ---
+  const [checkInTime, setCheckInTime] = useState<string | null>(null);
+  const [validUntil, setValidUntil] = useState<string | null>(null);
+  const [tier, setTier] = useState<string | null>(null);
 
   // --- Blockchain checkin/checkout writes ---
   const { writeContract: writeCheckIn, data: checkInTxHash } = useWriteContract();
@@ -58,6 +85,8 @@ const Checkin = () => {
         if (res.ok) {
           const data = await res.json();
           setStatus(data.status);
+
+          // voting merge
           const beautifulVoted = data.voting?.beautiful || hasVotedBeautifulBlockchain || false;
           const deliciousVoted = data.voting?.delicious || hasVotedDeliciousBlockchain || false;
           setVotingStatus({
@@ -65,6 +94,16 @@ const Checkin = () => {
             delicious: deliciousVoted,
             both: beautifulVoted && deliciousVoted
           });
+
+          // new: check-in info
+          if (data.checkInAt && data.tier) {
+            const checkInDate = new Date(data.checkInAt);
+            setCheckInTime(checkInDate.toLocaleString());
+            setTier(data.tier);
+
+            const endTime = addDuration(checkInDate, TIER_VISUALS[data.tier].duration);
+            setValidUntil(endTime.toLocaleString());
+          }
         }
       } catch (err) {
         console.error("Failed to fetch check-in status:", err);
@@ -92,59 +131,76 @@ const Checkin = () => {
     });
   };
 
-// --- Save checkin to DB when blockchain confirms ---
-useEffect(() => {
-  if (isCheckInConfirmed && checkInTxHash) {
-    const saveToDB = async () => {
-      try {
-        const token = localStorage.getItem("auth_token");
-        const res = await fetch("http://localhost:5001/api/checkin", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            txHash: checkInTxHash,
-            wallet: address,
-          }),
-        });
-        if (!res.ok) throw new Error("DB update failed");
-        setStatus("in");
-      } catch (err: any) {
-        setError(err.message || "Failed to update DB after check-in");
-      }
-    };
-    saveToDB();
-  }
-}, [isCheckInConfirmed, checkInTxHash, address]);
+  // --- Checkout handler ---
+  const handleCheckout = () => {
+    setError("");
+    if (!address) {
+      setError("Please connect your wallet first");
+      return;
+    }
+    writeCheckOut({
+      address: checkInOutAddress[holesky.id],
+      abi: checkInOutABI,
+      functionName: "checkOut",
+      args: [],
+      chain: holesky,
+      account: address,
+    });
+  };
 
-// --- Save checkout to DB when blockchain confirms ---
-useEffect(() => {
-  if (isCheckOutConfirmed && checkOutTxHash) {
-    const saveToDB = async () => {
-      try {
-        const token = localStorage.getItem("auth_token");
-        const res = await fetch("http://localhost:5001/api/checkout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            txHash: checkOutTxHash,
-            wallet: address,
-          }),
-        });
-        if (!res.ok) throw new Error("DB update failed");
-        setStatus("out");
-      } catch (err: any) {
-        setError(err.message || "Failed to update DB after check-out");
-      }
-    };
-    saveToDB();
-  }
-}, [isCheckOutConfirmed, checkOutTxHash, address]);
+  // --- Save checkin to DB when blockchain confirms ---
+  useEffect(() => {
+    if (isCheckInConfirmed && checkInTxHash) {
+      const saveToDB = async () => {
+        try {
+          const token = localStorage.getItem("auth_token");
+          const res = await fetch("http://localhost:5001/api/checkin", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+              txHash: checkInTxHash,
+              wallet: address,
+            }),
+          });
+          if (!res.ok) throw new Error("DB update failed");
+          setStatus("in");
+        } catch (err: any) {
+          setError(err.message || "Failed to update DB after check-in");
+        }
+      };
+      saveToDB();
+    }
+  }, [isCheckInConfirmed, checkInTxHash, address]);
+
+  // --- Save checkout to DB when blockchain confirms ---
+  useEffect(() => {
+    if (isCheckOutConfirmed && checkOutTxHash) {
+      const saveToDB = async () => {
+        try {
+          const token = localStorage.getItem("auth_token");
+          const res = await fetch("http://localhost:5001/api/checkout", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+              txHash: checkOutTxHash,
+              wallet: address,
+            }),
+          });
+          if (!res.ok) throw new Error("DB update failed");
+          setStatus("out");
+        } catch (err: any) {
+          setError(err.message || "Failed to update DB after check-out");
+        }
+      };
+      saveToDB();
+    }
+  }, [isCheckOutConfirmed, checkOutTxHash, address]);
 
   // --- Blockchain loading indicator ---
   useEffect(() => {
@@ -177,7 +233,24 @@ useEffect(() => {
             ) : (
               <>
                 {status === 'none' && <div className="text-muted-foreground">You have not checked in yet.</div>}
-                {status === 'in' && <div className="text-green-600 font-semibold">✅ You are checked in!</div>}
+                {status === 'in' && (
+                  <div className="text-green-600 font-semibold">
+                    ✅ You are checked in!
+                    {checkInTime && (
+                      <div className="text-sm text-gray-600 mt-1">
+                        ⏰ Checked in at: {checkInTime}
+                      </div>
+                    )}
+                    {validUntil && tier && (
+                      <div className="text-sm text-gray-600">
+                        🎟️ {TIER_VISUALS[tier].emoji} Valid until: {validUntil}
+                        <div className="text-xs text-gray-500">
+                          ({TIER_VISUALS[tier].description}, {TIER_VISUALS[tier].duration})
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {status === 'out' && <div className="text-blue-600 font-semibold">👋 You have checked out.</div>}
               </>
             )}
