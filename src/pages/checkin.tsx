@@ -7,28 +7,6 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { cakeVotingABI, cakeVotingAddress, checkInOutABI, checkInOutAddress } from '@/config/contracts';
 import { holesky } from 'wagmi/chains';
 
-// --- Tier visuals ---
-const TIER_VISUALS: { [key: string]: { emoji: string; description: string; duration: string } } = {
-  "Normal": { emoji: '🍰', description: 'Basic entry access', duration: '2 hours' },
-  "Premium": { emoji: '🎂', description: 'Extended entry duration', duration: '3 hours' },
-  "Family": { emoji: '👨‍👩‍👧‍👦', description: 'Family entry access (up to 5 people)', duration: '2.5 hours' },
-  "PremiumFamily": { emoji: '👑', description: 'Extended family entry duration (up to 7 people)', duration: '4 hours' }
-};
-
-// --- Helper to add duration to Date ---
-function addDuration(start: Date, duration: string): Date {
-  const [amount, unit] = duration.split(" ");
-  const num = parseFloat(amount);
-  const end = new Date(start);
-
-  if (unit.startsWith("hour")) {
-    end.setMinutes(end.getMinutes() + num * 60);
-  } else if (unit.startsWith("minute")) {
-    end.setMinutes(end.getMinutes() + num);
-  }
-  return end;
-}
-
 const Checkin = () => {
   const { isAuthenticated } = useAuth();
   const { address } = useAccount();
@@ -44,19 +22,14 @@ const Checkin = () => {
     both: false
   });
 
-  // --- New: check-in info ---
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
-  const [validUntil, setValidUntil] = useState<string | null>(null);
-  const [tier, setTier] = useState<string | null>(null);
 
-  // --- Blockchain checkin/checkout writes ---
   const { writeContract: writeCheckIn, data: checkInTxHash } = useWriteContract();
   const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({ hash: checkInTxHash, chainId: holesky.id });
 
   const { writeContract: writeCheckOut, data: checkOutTxHash } = useWriteContract();
   const { isSuccess: isCheckOutConfirmed } = useWaitForTransactionReceipt({ hash: checkOutTxHash, chainId: holesky.id });
 
-  // --- Voting status from blockchain ---
   const { data: hasVotedBeautifulBlockchain, isLoading: isLoadingBeautiful } = useReadContract({
     address: cakeVotingAddress[holesky.id],
     abi: cakeVotingABI,
@@ -74,7 +47,6 @@ const Checkin = () => {
     query: { enabled: !!address },
   });
 
-  // --- Load status from DB ---
   useEffect(() => {
     const fetchStatus = async () => {
       try {
@@ -86,7 +58,6 @@ const Checkin = () => {
           const data = await res.json();
           setStatus(data.status);
 
-          // voting merge
           const beautifulVoted = data.voting?.beautiful || hasVotedBeautifulBlockchain || false;
           const deliciousVoted = data.voting?.delicious || hasVotedDeliciousBlockchain || false;
           setVotingStatus({
@@ -95,14 +66,9 @@ const Checkin = () => {
             both: beautifulVoted && deliciousVoted
           });
 
-          // new: check-in info
-          if (data.checkInAt && data.tier) {
+          if (data.checkInAt) {
             const checkInDate = new Date(data.checkInAt);
             setCheckInTime(checkInDate.toLocaleString());
-            setTier(data.tier);
-
-            const endTime = addDuration(checkInDate, TIER_VISUALS[data.tier].duration);
-            setValidUntil(endTime.toLocaleString());
           }
         }
       } catch (err) {
@@ -114,7 +80,6 @@ const Checkin = () => {
     fetchStatus();
   }, [hasVotedBeautifulBlockchain, hasVotedDeliciousBlockchain]);
 
-  // --- Check-in handler ---
   const handleCheckin = () => {
     setError("");
     if (!address) {
@@ -131,7 +96,6 @@ const Checkin = () => {
     });
   };
 
-  // --- Checkout handler ---
   const handleCheckout = () => {
     setError("");
     if (!address) {
@@ -148,7 +112,6 @@ const Checkin = () => {
     });
   };
 
-  // --- Save checkin to DB when blockchain confirms ---
   useEffect(() => {
     if (isCheckInConfirmed && checkInTxHash) {
       const saveToDB = async () => {
@@ -175,14 +138,12 @@ const Checkin = () => {
     }
   }, [isCheckInConfirmed, checkInTxHash, address]);
 
-  // --- Handle checkout on blockchain confirmation (no DB) ---
   useEffect(() => {
     if (isCheckOutConfirmed && checkOutTxHash) {
       setStatus("out");
     }
   }, [isCheckOutConfirmed, checkOutTxHash]);
 
-  // --- Blockchain loading indicator ---
   useEffect(() => {
     if (address) {
       setBlockchainLoading(isLoadingBeautiful || isLoadingDelicious);
@@ -213,22 +174,9 @@ const Checkin = () => {
             ) : (
               <>
                 {status === 'none' && <div className="text-muted-foreground">You have not checked in yet.</div>}
-                {status === 'in' && (
+                {status === 'in' && checkInTime && (
                   <div className="text-green-600 font-semibold">
-                    ✅ You are checked in!
-                    {checkInTime && (
-                      <div className="text-sm text-gray-600 mt-1">
-                        ⏰ Checked in at: {checkInTime}
-                      </div>
-                    )}
-                    {validUntil && tier && (
-                      <div className="text-sm text-gray-600">
-                        🎟️ {TIER_VISUALS[tier].emoji} Valid until: {validUntil}
-                        <div className="text-xs text-gray-500">
-                          ({TIER_VISUALS[tier].description}, {TIER_VISUALS[tier].duration})
-                        </div>
-                      </div>
-                    )}
+                    ✅ You checked in at: <span className="text-gray-700">{checkInTime}</span>
                   </div>
                 )}
                 {status === 'out' && <div className="text-blue-600 font-semibold">👋 You have checked out.</div>}
