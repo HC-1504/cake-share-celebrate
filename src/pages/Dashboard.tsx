@@ -574,9 +574,6 @@ const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({
   chainId: holesky.id,
 });
 
-const [countdown, setCountdown] = useState<string | null>(null);
-const countdownRef = useRef<NodeJS.Timeout | null>(null);
-
 const handleCheckIn = async () => {
   if (!token || !address) return;
 
@@ -650,34 +647,6 @@ useEffect(() => {
             voting: { ...prev.voting, status: "pending" },
           }));
           setCheckInTime({ date: formattedDate, time: formattedTime });
-
-          // ----------------------- START COUNTDOWN -----------------------
-          // Example: category decides duration (1h, 3h, 24h etc.)
-          let durationMs = 3 * 60 * 60 * 1000; // default 3 hours
-          if (user?.category === "A") durationMs = 60 * 60 * 1000; // 1h
-          if (user?.category === "B") durationMs = 24 * 60 * 60 * 1000; // 24h
-
-          const targetTime = checkInDate.getTime() + durationMs;
-
-          if (countdownRef.current) clearInterval(countdownRef.current);
-          countdownRef.current = setInterval(() => {
-            const now = new Date().getTime();
-            const distance = targetTime - now;
-
-            if (distance <= 0) {
-              clearInterval(countdownRef.current!);
-              setCountdown("Expired ⏰");
-            } else {
-              const hours = Math.floor((distance / (1000 * 60 * 60)) % 24);
-              const minutes = Math.floor((distance / (1000 * 60)) % 60);
-              const seconds = Math.floor((distance / 1000) % 60);
-              setCountdown(
-                `${hours.toString().padStart(2, "0")}:${minutes
-                  .toString()
-                  .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
-              );
-            }
-          }, 1000);
         } else {
           toast({
             title: "DB update failed",
@@ -701,12 +670,6 @@ useEffect(() => {
   }
 }, [isCheckInConfirmed, checkInTxHash, token, address]);
 
-// ----------------------- CLEANUP INTERVAL -----------------------
-useEffect(() => {
-  return () => {
-    if (countdownRef.current) clearInterval(countdownRef.current);
-  };
-}, []);
 
 
 
