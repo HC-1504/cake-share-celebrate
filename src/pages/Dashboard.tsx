@@ -562,7 +562,7 @@ const Dashboard = () => {
     fetchRegistrationEvent();
   }, [address, publicClient]);
 
-  // ----------------------- CHECK-IN -----------------------
+ // ----------------------- CHECK-IN -----------------------
 const { writeContract: writeCheckIn, data: checkInTxHash, isPending: isCheckInPending } = useWriteContract();
 const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({
   hash: checkInTxHash,
@@ -599,10 +599,11 @@ const handleCheckIn = async () => {
   }
 };
 
-// When tx is confirmed → update DB
+// When tx is confirmed → update DB and show check-in time
 useEffect(() => {
   if (isCheckInConfirmed && checkInTxHash) {
     const saveCheckInToDB = async () => {
+      const checkInDate = new Date(); // Capture current timestamp
       try {
         const res = await fetch("http://localhost:5001/api/checkin", {
           method: "POST",
@@ -613,17 +614,24 @@ useEffect(() => {
           body: JSON.stringify({
             txHash: checkInTxHash,
             wallet: address,
+            checkInAt: checkInDate.toISOString(), // send timestamp to backend
           }),
         });
 
         if (res.ok) {
-          toast({ title: "Checked in 🎉", description: "Welcome to the event!" });
+          toast({
+            title: "Checked in 🎉",
+            description: `You checked in at ${checkInDate.toLocaleTimeString()}`, // show friendly message
+          });
+
+          // update local state to show in UI
           setUser(prev => prev ? { ...prev, checkedIn: true } : prev);
           setUserProgress(prev => ({
             ...prev,
             checkin: { completed: true, status: "completed" },
             voting: { ...prev.voting, status: "pending" },
           }));
+          setCheckInTime(checkInDate.toLocaleString()); // store timestamp in state
         } else {
           toast({
             title: "DB update failed",
@@ -641,6 +649,7 @@ useEffect(() => {
     saveCheckInToDB();
   }
 }, [isCheckInConfirmed, checkInTxHash, token, address]);
+
 
 
 // ----------------------- CHECK-OUT -----------------------
