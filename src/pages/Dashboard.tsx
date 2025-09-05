@@ -866,7 +866,7 @@ useEffect(() => {
       title: "Event Check-out",
       description: "Check out instantly after voting — no redirect",
       icon: <CheckCircle className="h-6 w-6" />,
-      link: "#",
+      link:"/checkin",
       status: userProgress.voting.completed ? userProgress.checkout.status : "locked",
     },
   ];
