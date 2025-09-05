@@ -175,14 +175,12 @@ const Checkin = () => {
     }
   }, [isCheckInConfirmed, checkInTxHash, address]);
 
-  // --- Save checkout to DB when blockchain confirms ---
- // --- Handle checkout on blockchain confirmation (no DB) ---
-useEffect(() => {
-  if (isCheckOutConfirmed && checkOutTxHash) {
-    setStatus("out");
-  }
-}, [isCheckOutConfirmed, checkOutTxHash]);
-
+  // --- Handle checkout on blockchain confirmation (no DB) ---
+  useEffect(() => {
+    if (isCheckOutConfirmed && checkOutTxHash) {
+      setStatus("out");
+    }
+  }, [isCheckOutConfirmed, checkOutTxHash]);
 
   // --- Blockchain loading indicator ---
   useEffect(() => {
@@ -298,10 +296,9 @@ useEffect(() => {
               onClick={handleCheckout}
               disabled={loading || status !== 'in' || !votingStatus.both}
             >
-             {status === 'out' && (
-  <div className="text-blue-600 font-semibold">
-    👋 You have checked out. See you again!
-  </div>
+              {status === 'in' ? '🚪 Check Out' : '👋 You have checked out. See you again!'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
