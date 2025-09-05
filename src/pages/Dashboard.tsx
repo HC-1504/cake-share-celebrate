@@ -563,12 +563,7 @@ const Dashboard = () => {
   }, [address, publicClient]);
 
 // ----------------------- CHECK-IN -----------------------
-const {
-  writeContract: writeCheckIn,
-  data: checkInTxHash,
-  isPending: isCheckInPending,
-} = useWriteContract();
-
+const { writeContract: writeCheckIn, data: checkInTxHash, isPending: isCheckInPending } = useWriteContract();
 const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({
   hash: checkInTxHash,
   chainId: holesky.id,
@@ -580,6 +575,7 @@ const handleCheckIn = async () => {
   try {
     setIsCheckingIn(true);
 
+    // 1. Call smart contract checkIn()
     writeCheckIn({
       address: checkInOutAddress[holesky.id],
       abi: checkInOutABI,
@@ -603,12 +599,13 @@ const handleCheckIn = async () => {
   }
 };
 
-// ----------------------- HANDLE CONFIRMED CHECK-IN -----------------------
+// When tx is confirmed → update DB and show check-in time
 useEffect(() => {
   if (isCheckInConfirmed && checkInTxHash) {
     const saveCheckInToDB = async () => {
-      const checkInDate = new Date();
+      const checkInDate = new Date(); // Capture current timestamp
 
+      // Format date & time separately
       const formattedDate = checkInDate.toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
@@ -630,22 +627,25 @@ useEffect(() => {
           body: JSON.stringify({
             txHash: checkInTxHash,
             wallet: address,
-            checkInAt: checkInDate.toISOString(),
+            checkInAt: checkInDate.toISOString(), // send raw timestamp to backend
           }),
         });
 
         if (res.ok) {
           toast({
             title: "Checked in 🎉",
-            description: `You checked in on ${formattedDate}\n${formattedTime}`,
+            description: `You checked in on ${formattedDate} at ${formattedTime}`, // nice message
           });
 
-          setUser((prev) => (prev ? { ...prev, checkedIn: true } : prev));
-          setUserProgress((prev) => ({
+          // update local state to show in UI
+          setUser(prev => prev ? { ...prev, checkedIn: true } : prev);
+          setUserProgress(prev => ({
             ...prev,
             checkin: { completed: true, status: "completed" },
             voting: { ...prev.voting, status: "pending" },
           }));
+
+          // store nicely formatted timestamp in state
           setCheckInTime({ date: formattedDate, time: formattedTime });
         } else {
           toast({
@@ -656,11 +656,6 @@ useEffect(() => {
         }
       } catch (e) {
         console.error("DB error:", e);
-        toast({
-          title: "Server error",
-          description: "Could not save check-in to database",
-          variant: "destructive",
-        });
       } finally {
         setIsCheckingIn(false);
       }
@@ -669,8 +664,6 @@ useEffect(() => {
     saveCheckInToDB();
   }
 }, [isCheckInConfirmed, checkInTxHash, token, address]);
-
-
 
 
 // ----------------------- CHECK-OUT -----------------------
