@@ -22,7 +22,7 @@ const Checkin = () => {
     both: false
   });
 
-  const [checkInTime, setCheckInTime] = useState<string | null>(null);
+  const [checkInTime, setCheckInTime] = useState<{ date: string; time: string } | null>(null);
 
   const { writeContract: writeCheckIn, data: checkInTxHash } = useWriteContract();
   const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({ hash: checkInTxHash, chainId: holesky.id });
@@ -68,7 +68,19 @@ const Checkin = () => {
 
           if (data.checkInAt) {
             const checkInDate = new Date(data.checkInAt);
-            setCheckInTime(checkInDate.toLocaleString());
+
+            const formattedDate = checkInDate.toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            });
+
+            const formattedTime = checkInDate.toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+
+            setCheckInTime({ date: formattedDate, time: formattedTime });
           }
         }
       } catch (err) {
@@ -175,8 +187,10 @@ const Checkin = () => {
               <>
                 {status === 'none' && <div className="text-muted-foreground">You have not checked in yet.</div>}
                 {status === 'in' && checkInTime && (
-                  <div className="text-green-600 font-semibold">
-                    ✅ You checked in at: <span className="text-gray-700">{checkInTime}</span>
+                  <div className="text-green-600 font-semibold text-center">
+                    ✅ You checked in on
+                    <div className="text-gray-700">{checkInTime.date}</div>
+                    <div className="text-gray-700">{checkInTime.time}</div>
                   </div>
                 )}
                 {status === 'out' && <div className="text-blue-600 font-semibold">👋 You have checked out.</div>}
