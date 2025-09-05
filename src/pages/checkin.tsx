@@ -176,31 +176,13 @@ const Checkin = () => {
   }, [isCheckInConfirmed, checkInTxHash, address]);
 
   // --- Save checkout to DB when blockchain confirms ---
-  useEffect(() => {
-    if (isCheckOutConfirmed && checkOutTxHash) {
-      const saveToDB = async () => {
-        try {
-          const token = localStorage.getItem("auth_token");
-          const res = await fetch("http://localhost:5001/api/checkout", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify({
-              txHash: checkOutTxHash,
-              wallet: address,
-            }),
-          });
-          if (!res.ok) throw new Error("DB update failed");
-          setStatus("out");
-        } catch (err: any) {
-          setError(err.message || "Failed to update DB after check-out");
-        }
-      };
-      saveToDB();
-    }
-  }, [isCheckOutConfirmed, checkOutTxHash, address]);
+ // --- Handle checkout on blockchain confirmation (no DB) ---
+useEffect(() => {
+  if (isCheckOutConfirmed && checkOutTxHash) {
+    setStatus("out");
+  }
+}, [isCheckOutConfirmed, checkOutTxHash]);
+
 
   // --- Blockchain loading indicator ---
   useEffect(() => {
@@ -316,13 +298,10 @@ const Checkin = () => {
               onClick={handleCheckout}
               disabled={loading || status !== 'in' || !votingStatus.both}
             >
-              {status === 'out'
-                ? '👋 Already Checked Out'
-                : !votingStatus.both && status === 'in'
-                ? '🗳️ Complete Voting First'
-                : '🚪 Check Out'}
-            </Button>
-          </div>
+             {status === 'out' && (
+  <div className="text-blue-600 font-semibold">
+    👋 You have checked out. See you again!
+  </div>
         </CardContent>
       </Card>
     </div>
