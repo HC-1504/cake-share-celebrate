@@ -1,9 +1,7 @@
 // backend/models/user.js
 
-// Use 'import' instead of 'require'
 import { Model, DataTypes } from 'sequelize';
 
-// Use 'export default' instead of 'module.exports'
 export default (sequelize) => {
   class User extends Model {
     static associate(models) {
@@ -23,8 +21,20 @@ export default (sequelize) => {
     ethAddress: DataTypes.STRING,
     category: DataTypes.STRING,
     txHash: DataTypes.STRING,
-    hasPaid: DataTypes.BOOLEAN,
-    checkedIn: DataTypes.BOOLEAN
+    hasPaid: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+
+    // ✅ timestamps for checkin / checkout
+    checkedInAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    checkedOutAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   }, {
     sequelize,
     modelName: 'User',
