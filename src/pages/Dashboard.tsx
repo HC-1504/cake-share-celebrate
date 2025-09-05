@@ -604,6 +604,19 @@ useEffect(() => {
   if (isCheckInConfirmed && checkInTxHash) {
     const saveCheckInToDB = async () => {
       const checkInDate = new Date(); // Capture current timestamp
+
+      // Format date & time separately
+      const formattedDate = checkInDate.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+
+      const formattedTime = checkInDate.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
       try {
         const res = await fetch("http://localhost:5001/api/checkin", {
           method: "POST",
@@ -614,14 +627,14 @@ useEffect(() => {
           body: JSON.stringify({
             txHash: checkInTxHash,
             wallet: address,
-            checkInAt: checkInDate.toISOString(), // send timestamp to backend
+            checkInAt: checkInDate.toISOString(), // send raw timestamp to backend
           }),
         });
 
         if (res.ok) {
           toast({
             title: "Checked in 🎉",
-            description: `You checked in at ${checkInDate.toLocaleTimeString()}`, // show friendly message
+            description: `You checked in on ${formattedDate} at ${formattedTime}`, // nice message
           });
 
           // update local state to show in UI
@@ -631,7 +644,9 @@ useEffect(() => {
             checkin: { completed: true, status: "completed" },
             voting: { ...prev.voting, status: "pending" },
           }));
-          setCheckInTime(checkInDate.toLocaleString()); // store timestamp in state
+
+          // store nicely formatted timestamp in state
+          setCheckInTime({ date: formattedDate, time: formattedTime });
         } else {
           toast({
             title: "DB update failed",
@@ -649,6 +664,7 @@ useEffect(() => {
     saveCheckInToDB();
   }
 }, [isCheckInConfirmed, checkInTxHash, token, address]);
+
 
 
 
