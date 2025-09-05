@@ -562,12 +562,20 @@ const Dashboard = () => {
     fetchRegistrationEvent();
   }, [address, publicClient]);
 
- // ----------------------- CHECK-IN -----------------------
-const { writeContract: writeCheckIn, data: checkInTxHash, isPending: isCheckInPending } = useWriteContract();
+// ----------------------- CHECK-IN -----------------------
+const {
+  writeContract: writeCheckIn,
+  data: checkInTxHash,
+  isPending: isCheckInPending,
+} = useWriteContract();
+
 const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({
   hash: checkInTxHash,
   chainId: holesky.id,
 });
+
+const [countdown, setCountdown] = useState<string | null>(null);
+const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
 const handleCheckIn = async () => {
   if (!token || !address) return;
@@ -575,7 +583,6 @@ const handleCheckIn = async () => {
   try {
     setIsCheckingIn(true);
 
-    // 1. Call smart contract checkIn()
     writeCheckIn({
       address: checkInOutAddress[holesky.id],
       abi: checkInOutABI,
@@ -599,13 +606,12 @@ const handleCheckIn = async () => {
   }
 };
 
-// When tx is confirmed → update DB and show check-in time
+// ----------------------- HANDLE CONFIRMED CHECK-IN -----------------------
 useEffect(() => {
   if (isCheckInConfirmed && checkInTxHash) {
     const saveCheckInToDB = async () => {
-      const checkInDate = new Date(); // Capture current timestamp
+      const checkInDate = new Date();
 
-      // Format date & time separately
       const formattedDate = checkInDate.toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
@@ -627,26 +633,51 @@ useEffect(() => {
           body: JSON.stringify({
             txHash: checkInTxHash,
             wallet: address,
-            checkInAt: checkInDate.toISOString(), // send raw timestamp to backend
+            checkInAt: checkInDate.toISOString(),
           }),
         });
 
         if (res.ok) {
           toast({
             title: "Checked in 🎉",
-            description: `You checked in on ${formattedDate} at ${formattedTime}`, // nice message
+            description: `You checked in on ${formattedDate}\n${formattedTime}`,
           });
 
-          // update local state to show in UI
-          setUser(prev => prev ? { ...prev, checkedIn: true } : prev);
-          setUserProgress(prev => ({
+          setUser((prev) => (prev ? { ...prev, checkedIn: true } : prev));
+          setUserProgress((prev) => ({
             ...prev,
             checkin: { completed: true, status: "completed" },
             voting: { ...prev.voting, status: "pending" },
           }));
-
-          // store nicely formatted timestamp in state
           setCheckInTime({ date: formattedDate, time: formattedTime });
+
+          // ----------------------- START COUNTDOWN -----------------------
+          // Example: category decides duration (1h, 3h, 24h etc.)
+          let durationMs = 3 * 60 * 60 * 1000; // default 3 hours
+          if (user?.category === "A") durationMs = 60 * 60 * 1000; // 1h
+          if (user?.category === "B") durationMs = 24 * 60 * 60 * 1000; // 24h
+
+          const targetTime = checkInDate.getTime() + durationMs;
+
+          if (countdownRef.current) clearInterval(countdownRef.current);
+          countdownRef.current = setInterval(() => {
+            const now = new Date().getTime();
+            const distance = targetTime - now;
+
+            if (distance <= 0) {
+              clearInterval(countdownRef.current!);
+              setCountdown("Expired ⏰");
+            } else {
+              const hours = Math.floor((distance / (1000 * 60 * 60)) % 24);
+              const minutes = Math.floor((distance / (1000 * 60)) % 60);
+              const seconds = Math.floor((distance / 1000) % 60);
+              setCountdown(
+                `${hours.toString().padStart(2, "0")}:${minutes
+                  .toString()
+                  .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+              );
+            }
+          }, 1000);
         } else {
           toast({
             title: "DB update failed",
@@ -656,6 +687,11 @@ useEffect(() => {
         }
       } catch (e) {
         console.error("DB error:", e);
+        toast({
+          title: "Server error",
+          description: "Could not save check-in to database",
+          variant: "destructive",
+        });
       } finally {
         setIsCheckingIn(false);
       }
@@ -665,6 +701,12 @@ useEffect(() => {
   }
 }, [isCheckInConfirmed, checkInTxHash, token, address]);
 
+// ----------------------- CLEANUP INTERVAL -----------------------
+useEffect(() => {
+  return () => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+  };
+}, []);
 
 
 
