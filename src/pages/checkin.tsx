@@ -23,6 +23,7 @@ const Checkin = () => {
   });
 
   const [checkInTime, setCheckInTime] = useState<{ date: string; time: string } | null>(null);
+  const [checkOutTime, setCheckOutTime] = useState<{ date: string; time: string } | null>(null);
 
   const { writeContract: writeCheckIn, data: checkInTxHash } = useWriteContract();
   const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({ hash: checkInTxHash, chainId: holesky.id });
@@ -68,19 +69,18 @@ const Checkin = () => {
 
           if (data.checkInAt) {
             const checkInDate = new Date(data.checkInAt);
-
-            const formattedDate = checkInDate.toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
+            setCheckInTime({
+              date: checkInDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+              time: checkInDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
             });
+          }
 
-            const formattedTime = checkInDate.toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
+          if (data.checkOutAt) {
+            const checkOutDate = new Date(data.checkOutAt);
+            setCheckOutTime({
+              date: checkOutDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+              time: checkOutDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
             });
-
-            setCheckInTime({ date: formattedDate, time: formattedTime });
           }
         }
       } catch (err) {
@@ -152,9 +152,36 @@ const Checkin = () => {
 
   useEffect(() => {
     if (isCheckOutConfirmed && checkOutTxHash) {
-      setStatus("out");
+      const saveToDB = async () => {
+        try {
+          const token = localStorage.getItem("auth_token");
+          const res = await fetch("http://localhost:5001/api/checkout", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+              txHash: checkOutTxHash,
+              wallet: address,
+            }),
+          });
+          if (!res.ok) throw new Error("DB update failed");
+
+          const now = new Date();
+          setCheckOutTime({
+            date: now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+            time: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+          });
+
+          setStatus("out");
+        } catch (err: any) {
+          setError(err.message || "Failed to update DB after check-out");
+        }
+      };
+      saveToDB();
     }
-  }, [isCheckOutConfirmed, checkOutTxHash]);
+  }, [isCheckOutConfirmed, checkOutTxHash, address]);
 
   useEffect(() => {
     if (address) {
@@ -193,7 +220,18 @@ const Checkin = () => {
                     <div className="text-gray-700">{checkInTime.time}</div>
                   </div>
                 )}
-                {status === 'out' && <div className="text-blue-600 font-semibold">👋 You have checked out.</div>}
+                {status === 'out' && (
+                  <div className="text-blue-600 font-semibold text-center">
+                    👋 You have checked out.
+                    {checkOutTime && (
+                      <div className="mt-2 text-gray-700">
+                        ⏰ Checked out on
+                        <div>{checkOutTime.date}</div>
+                        <div>{checkOutTime.time}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
             {error && <div className="text-red-600 font-semibold mt-2">{error}</div>}
