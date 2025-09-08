@@ -270,4 +270,4 @@ const Checkin = () => {
 export default Checkin;
 
 
-can u add the checkout time as for the check in one ??
+
