@@ -791,7 +791,7 @@ export const cakeUploadABI = [
 ] as const
 
 export const cakeUploadAddress = {
-	[holesky.id]: '0x32F91C689f790612e2517adef712d2Ad9b8503A1' as `0x${string}`
+	[holesky.id]: '0x18c499112DFC6145dbc4df8398578AaB9e7A8F0a' as `0x${string}`
 }
 
 export const cakeVotingABI = [
