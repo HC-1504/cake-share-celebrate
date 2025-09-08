@@ -179,39 +179,18 @@ const Checkin = () => {
     }
   }, [isCheckInConfirmed, checkInTxHash, address]);
 
-  // --- Save Check-out to DB ---
+  // --- Check-out: UI only (no DB) ---
   useEffect(() => {
     if (isCheckOutConfirmed && checkOutTxHash) {
-      const saveToDB = async () => {
-        try {
-          const token = localStorage.getItem("auth_token");
-          const res = await fetch("http://localhost:5001/api/checkout", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify({
-              txHash: checkOutTxHash,
-              wallet: address,
-            }),
-          });
-          if (!res.ok) throw new Error("DB update failed");
+      const now = new Date();
+      setCheckOutTime({
+        date: now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+        time: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+      });
 
-          const now = new Date();
-          setCheckOutTime({
-            date: now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
-            time: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
-          });
-
-          setStatus("out");
-        } catch (err: any) {
-          setError(err.message || "Failed to update DB after check-out");
-        }
-      };
-      saveToDB();
+      setStatus("out");
     }
-  }, [isCheckOutConfirmed, checkOutTxHash, address]);
+  }, [isCheckOutConfirmed, checkOutTxHash]);
 
   // --- Blockchain loading indicator ---
   useEffect(() => {
