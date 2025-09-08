@@ -634,7 +634,7 @@ useEffect(() => {
         if (res.ok) {
           toast({
             title: "Checked in 🎉",
-            description: `You checked in on ${formattedDate} at ${formattedTime}`,
+            description: `You checked in on ${formattedDate} at ${formattedTime}`, // nice message
           });
 
           // update local state to show in UI
@@ -703,35 +703,19 @@ const handleCheckOut = async () => {
   }
 };
 
-// When tx is confirmed → just update local state & toast with timing
+// When tx is confirmed → just update local state & toast
 useEffect(() => {
   if (isCheckOutConfirmed && checkOutTxHash) {
-    const checkOutDate = new Date();
-
-    const formattedDate = checkOutDate.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-
-    const formattedTime = checkOutDate.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
     toast({
       title: "Checked out 👋",
-      description: `You checked out on ${formattedDate} at ${formattedTime}`,
+      description: "See you again!",
     });
 
-    // Update local state
+    // Example: mark checkout complete in local state
     setUserProgress(prev => ({
       ...prev,
       checkout: { completed: true, status: "completed" },
     }));
-
-    // Save formatted checkout time in state
-    setCheckOutTime({ date: formattedDate, time: formattedTime });
 
     setIsCheckingOut(false);
   }
