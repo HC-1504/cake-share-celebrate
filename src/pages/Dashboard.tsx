@@ -665,7 +665,6 @@ useEffect(() => {
   }
 }, [isCheckInConfirmed, checkInTxHash, token, address]);
 
-
 // ----------------------- CHECK-OUT -----------------------
 const { writeContract: writeCheckOut, data: checkOutTxHash, isPending: isCheckOutPending } = useWriteContract();
 const { isSuccess: isCheckOutConfirmed } = useWaitForTransactionReceipt({
@@ -703,23 +702,68 @@ const handleCheckOut = async () => {
   }
 };
 
-// When tx is confirmed → just update local state & toast
+// When tx is confirmed → update DB, local state & toast
 useEffect(() => {
   if (isCheckOutConfirmed && checkOutTxHash) {
-    toast({
-      title: "Checked out 👋",
-      description: "See you again!",
-    });
+    const saveCheckOutToDB = async () => {
+      const checkOutDate = new Date();
 
-    // Example: mark checkout complete in local state
-    setUserProgress(prev => ({
-      ...prev,
-      checkout: { completed: true, status: "completed" },
-    }));
+      // Format date & time
+      const formattedDate = checkOutDate.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
 
-    setIsCheckingOut(false);
+      const formattedTime = checkOutDate.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      try {
+        const res = await fetch("http://localhost:5001/api/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            txHash: checkOutTxHash,
+            wallet: address,
+            checkOutAt: checkOutDate.toISOString(), // raw timestamp
+          }),
+        });
+
+        if (res.ok) {
+          toast({
+            title: "Checked out 👋",
+            description: `You checked out on ${formattedDate} at ${formattedTime}`,
+          });
+
+          setUserProgress(prev => ({
+            ...prev,
+            checkout: { completed: true, status: "completed" },
+          }));
+
+          setStatus("out");
+        } else {
+          toast({
+            title: "DB update failed",
+            description: "Blockchain confirmed, but DB did not update",
+            variant: "destructive",
+          });
+        }
+      } catch (err) {
+        console.error("DB error:", err);
+      } finally {
+        setIsCheckingOut(false);
+      }
+    };
+
+    saveCheckOutToDB();
   }
-}, [isCheckOutConfirmed, checkOutTxHash]);
+}, [isCheckOutConfirmed, checkOutTxHash, token, address, toast]);
+
 
   // Update user cake when blockchain data changes
   useEffect(() => {
