@@ -603,9 +603,8 @@ const handleCheckIn = async () => {
 useEffect(() => {
   if (isCheckInConfirmed && checkInTxHash) {
     const saveCheckInToDB = async () => {
-      const checkInDate = new Date(); // Capture current timestamp
+      const checkInDate = new Date();
 
-      // Format date & time separately
       const formattedDate = checkInDate.toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
@@ -627,17 +626,16 @@ useEffect(() => {
           body: JSON.stringify({
             txHash: checkInTxHash,
             wallet: address,
-            checkInAt: checkInDate.toISOString(), // send raw timestamp to backend
+            checkInAt: checkInDate.toISOString(),
           }),
         });
 
         if (res.ok) {
           toast({
             title: "Checked in 🎉",
-            description: `You checked in on ${formattedDate} at ${formattedTime}`, // nice message
+            description: `You checked in on ${formattedDate} at ${formattedTime}`,
           });
 
-          // update local state to show in UI
           setUser(prev => prev ? { ...prev, checkedIn: true } : prev);
           setUserProgress(prev => ({
             ...prev,
@@ -645,7 +643,6 @@ useEffect(() => {
             voting: { ...prev.voting, status: "pending" },
           }));
 
-          // store nicely formatted timestamp in state
           setCheckInTime({ date: formattedDate, time: formattedTime });
         } else {
           toast({
@@ -702,67 +699,38 @@ const handleCheckOut = async () => {
   }
 };
 
-// When tx is confirmed → update DB, local state & toast
+// When tx is confirmed → only set timing (no DB)
 useEffect(() => {
   if (isCheckOutConfirmed && checkOutTxHash) {
-    const saveCheckOutToDB = async () => {
-      const checkOutDate = new Date();
+    const checkOutDate = new Date();
 
-      // Format date & time
-      const formattedDate = checkOutDate.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
+    const formattedDate = checkOutDate.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
 
-      const formattedTime = checkOutDate.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+    const formattedTime = checkOutDate.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
-      try {
-        const res = await fetch("http://localhost:5001/api/checkout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            txHash: checkOutTxHash,
-            wallet: address,
-            checkOutAt: checkOutDate.toISOString(), // raw timestamp
-          }),
-        });
+    toast({
+      title: "Checked out 👋",
+      description: `You checked out on ${formattedDate} at ${formattedTime}`,
+    });
 
-        if (res.ok) {
-          toast({
-            title: "Checked out 👋",
-            description: `You checked out on ${formattedDate} at ${formattedTime}`,
-          });
+    setUserProgress(prev => ({
+      ...prev,
+      checkout: { completed: true, status: "completed" },
+    }));
 
-          setUserProgress(prev => ({
-            ...prev,
-            checkout: { completed: true, status: "completed" },
-          }));
-
-          setStatus("out");
-        } else {
-          toast({
-            title: "DB update failed",
-            description: "Blockchain confirmed, but DB did not update",
-            variant: "destructive",
-          });
-        }
-      } catch (err) {
-        console.error("DB error:", err);
-      } finally {
-        setIsCheckingOut(false);
-      }
-    };
-
-    saveCheckOutToDB();
+    setCheckOutTime({ date: formattedDate, time: formattedTime });
+    setStatus("out");
+    setIsCheckingOut(false);
   }
-}, [isCheckOutConfirmed, checkOutTxHash, token, address, toast]);
+}, [isCheckOutConfirmed, checkOutTxHash, address, toast]);
+
 
 
   // Update user cake when blockchain data changes
