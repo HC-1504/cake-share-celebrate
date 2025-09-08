@@ -3,70 +3,50 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/App";
 import { Navigate, Link } from "react-router-dom";
-import {
-  useAccount,
-  useReadContract,
-  useWriteContract,
-  useWaitForTransactionReceipt,
-} from "wagmi";
-import {
-  cakeVotingABI,
-  cakeVotingAddress,
-  checkInOutABI,
-  checkInOutAddress,
-} from "@/config/contracts";
-import { holesky } from "wagmi/chains";
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { cakeVotingABI, cakeVotingAddress, checkInOutABI, checkInOutAddress } from '@/config/contracts';
+import { holesky } from 'wagmi/chains';
 
 const Checkin = () => {
   const { isAuthenticated } = useAuth();
   const { address } = useAccount();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  const [status, setStatus] = useState<"none" | "in" | "out">("none");
+  const [status, setStatus] = useState<'none' | 'in' | 'out'>('none');
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [blockchainLoading, setBlockchainLoading] = useState(true);
   const [votingStatus, setVotingStatus] = useState({
     beautiful: false,
     delicious: false,
-    both: false,
+    both: false
   });
 
   const [checkInTime, setCheckInTime] = useState<{ date: string; time: string } | null>(null);
-  const [checkOutTime, setCheckOutTime] = useState<{ date: string; time: string } | null>(null);
 
-  // --- Contracts ---
   const { writeContract: writeCheckIn, data: checkInTxHash } = useWriteContract();
-  const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({
-    hash: checkInTxHash,
-    chainId: holesky.id,
-  });
+  const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({ hash: checkInTxHash, chainId: holesky.id });
 
   const { writeContract: writeCheckOut, data: checkOutTxHash } = useWriteContract();
-  const { isSuccess: isCheckOutConfirmed } = useWaitForTransactionReceipt({
-    hash: checkOutTxHash,
-    chainId: holesky.id,
-  });
+  const { isSuccess: isCheckOutConfirmed } = useWaitForTransactionReceipt({ hash: checkOutTxHash, chainId: holesky.id });
 
   const { data: hasVotedBeautifulBlockchain, isLoading: isLoadingBeautiful } = useReadContract({
     address: cakeVotingAddress[holesky.id],
     abi: cakeVotingABI,
-    functionName: "hasVotedInCategory",
-    args: address ? [address, "beautiful"] : undefined,
+    functionName: 'hasVotedInCategory',
+    args: address ? [address, 'beautiful'] : undefined,
     chainId: holesky.id,
     query: { enabled: !!address },
   });
-
   const { data: hasVotedDeliciousBlockchain, isLoading: isLoadingDelicious } = useReadContract({
     address: cakeVotingAddress[holesky.id],
     abi: cakeVotingABI,
-    functionName: "hasVotedInCategory",
-    args: address ? [address, "delicious"] : undefined,
+    functionName: 'hasVotedInCategory',
+    args: address ? [address, 'delicious'] : undefined,
     chainId: holesky.id,
     query: { enabled: !!address },
   });
 
-  // --- Load initial status from DB ---
   useEffect(() => {
     const fetchStatus = async () => {
       try {
@@ -83,23 +63,24 @@ const Checkin = () => {
           setVotingStatus({
             beautiful: beautifulVoted,
             delicious: deliciousVoted,
-            both: beautifulVoted && deliciousVoted,
+            both: beautifulVoted && deliciousVoted
           });
 
           if (data.checkInAt) {
             const checkInDate = new Date(data.checkInAt);
-            setCheckInTime({
-              date: checkInDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
-              time: checkInDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
-            });
-          }
 
-          if (data.checkOutAt) {
-            const checkOutDate = new Date(data.checkOutAt);
-            setCheckOutTime({
-              date: checkOutDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
-              time: checkOutDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+            const formattedDate = checkInDate.toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
             });
+
+            const formattedTime = checkInDate.toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+
+            setCheckInTime({ date: formattedDate, time: formattedTime });
           }
         }
       } catch (err) {
@@ -111,7 +92,6 @@ const Checkin = () => {
     fetchStatus();
   }, [hasVotedBeautifulBlockchain, hasVotedDeliciousBlockchain]);
 
-  // --- Handle Check-in ---
   const handleCheckin = () => {
     setError("");
     if (!address) {
@@ -128,7 +108,6 @@ const Checkin = () => {
     });
   };
 
-  // --- Handle Check-out ---
   const handleCheckout = () => {
     setError("");
     if (!address) {
@@ -145,7 +124,6 @@ const Checkin = () => {
     });
   };
 
-  // --- Save Check-in to DB ---
   useEffect(() => {
     if (isCheckInConfirmed && checkInTxHash) {
       const saveToDB = async () => {
@@ -163,13 +141,6 @@ const Checkin = () => {
             }),
           });
           if (!res.ok) throw new Error("DB update failed");
-
-          const now = new Date();
-          setCheckInTime({
-            date: now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
-            time: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
-          });
-
           setStatus("in");
         } catch (err: any) {
           setError(err.message || "Failed to update DB after check-in");
@@ -179,20 +150,12 @@ const Checkin = () => {
     }
   }, [isCheckInConfirmed, checkInTxHash, address]);
 
-  // --- Check-out: UI only (no DB) ---
   useEffect(() => {
     if (isCheckOutConfirmed && checkOutTxHash) {
-      const now = new Date();
-      setCheckOutTime({
-        date: now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
-        time: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
-      });
-
       setStatus("out");
     }
   }, [isCheckOutConfirmed, checkOutTxHash]);
 
-  // --- Blockchain loading indicator ---
   useEffect(() => {
     if (address) {
       setBlockchainLoading(isLoadingBeautiful || isLoadingDelicious);
@@ -222,54 +185,35 @@ const Checkin = () => {
               <div className="text-muted-foreground">Loading status...</div>
             ) : (
               <>
-                {status === "none" && <div className="text-muted-foreground">You have not checked in yet.</div>}
-                {status === "in" && checkInTime && (
+                {status === 'none' && <div className="text-muted-foreground">You have not checked in yet.</div>}
+                {status === 'in' && checkInTime && (
                   <div className="text-green-600 font-semibold text-center">
                     ✅ You checked in on
                     <div className="text-gray-700">{checkInTime.date}</div>
                     <div className="text-gray-700">{checkInTime.time}</div>
                   </div>
                 )}
-                {status === "out" && (
-                  <div className="text-blue-600 font-semibold text-center">
-                    👋 You have checked out.
-                    {checkOutTime && (
-                      <div className="mt-2 text-gray-700">
-                        ⏰ Checked out on
-                        <div>{checkOutTime.date}</div>
-                        <div>{checkOutTime.time}</div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                {status === 'out' && <div className="text-blue-600 font-semibold">👋 You have checked out.</div>}
               </>
             )}
             {error && <div className="text-red-600 font-semibold mt-2">{error}</div>}
           </div>
 
           {/* Voting Status */}
-          {!loading && status === "in" && (
+          {!loading && status === 'in' && (
             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
               <h3 className="font-semibold text-gray-800 mb-3">🗳️ Voting Requirements for Check-out</h3>
               <div className="space-y-2 text-sm">
-                <div
-                  className={`flex items-center gap-2 ${
-                    votingStatus.beautiful ? "text-green-600" : "text-orange-600"
-                  }`}
-                >
-                  {votingStatus.beautiful ? "✅" : "⏳"} Most Beautiful Cake
-                  {votingStatus.beautiful ? " - Voted ✓" : " - Not voted yet"}
+                <div className={`flex items-center gap-2 ${votingStatus.beautiful ? 'text-green-600' : 'text-orange-600'}`}>
+                  {votingStatus.beautiful ? '✅' : '⏳'} Most Beautiful Cake
+                  {votingStatus.beautiful ? ' - Voted ✓' : ' - Not voted yet'}
                   {hasVotedBeautifulBlockchain && (
                     <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">Blockchain ✓</span>
                   )}
                 </div>
-                <div
-                  className={`flex items-center gap-2 ${
-                    votingStatus.delicious ? "text-green-600" : "text-orange-600"
-                  }`}
-                >
-                  {votingStatus.delicious ? "✅" : "⏳"} Most Delicious Cake
-                  {votingStatus.delicious ? " - Voted ✓" : " - Not voted yet"}
+                <div className={`flex items-center gap-2 ${votingStatus.delicious ? 'text-green-600' : 'text-orange-600'}`}>
+                  {votingStatus.delicious ? '✅' : '⏳'} Most Delicious Cake
+                  {votingStatus.delicious ? ' - Voted ✓' : ' - Not voted yet'}
                   {hasVotedDeliciousBlockchain && (
                     <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">Blockchain ✓</span>
                   )}
@@ -278,9 +222,7 @@ const Checkin = () => {
                   <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">
                     <p className="text-xs">
                       💡 You must vote for both categories before you can check out.
-                      <Link to="/voting" className="underline ml-1 hover:text-yellow-900">
-                        Go to voting page
-                      </Link>
+                      <Link to="/voting" className="underline ml-1 hover:text-yellow-900">Go to voting page</Link>
                     </p>
                   </div>
                 )}
@@ -299,16 +241,12 @@ const Checkin = () => {
               variant="cake"
               className="w-full"
               onClick={handleCheckin}
-              disabled={loading || status === "in" || status === "out"}
+              disabled={loading || status === 'in' || status === 'out'}
             >
-              {status === "in"
-                ? "✅ Already Checked In"
-                : status === "out"
-                ? "✅ Event Complete"
-                : "🚪 Check In"}
+              {status === 'in' ? '✅ Already Checked In' : status === 'out' ? '✅ Event Complete' : '🚪 Check In'}
             </Button>
 
-            {status === "in" && !votingStatus.both && (
+            {status === 'in' && !votingStatus.both && (
               <Button variant="outline" className="w-full" asChild>
                 <Link to="/voting"> 🗳️ Go Vote Now </Link>
               </Button>
@@ -318,9 +256,9 @@ const Checkin = () => {
               variant="soft"
               className="w-full"
               onClick={handleCheckout}
-              disabled={loading || status !== "in" || !votingStatus.both}
+              disabled={loading || status !== 'in' || !votingStatus.both}
             >
-              {status === "in" ? "🚪 Check Out" : "👋 You have checked out. See you again!"}
+              {status === 'in' ? '🚪 Check Out' : '👋 You have checked out. See you again!'}
             </Button>
           </div>
         </CardContent>
@@ -330,3 +268,6 @@ const Checkin = () => {
 };
 
 export default Checkin;
+
+
+can u add the checkout time as for the check in one ??
