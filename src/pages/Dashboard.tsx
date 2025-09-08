@@ -603,8 +603,9 @@ const handleCheckIn = async () => {
 useEffect(() => {
   if (isCheckInConfirmed && checkInTxHash) {
     const saveCheckInToDB = async () => {
-      const checkInDate = new Date();
+      const checkInDate = new Date(); // Capture current timestamp
 
+      // Format date & time separately
       const formattedDate = checkInDate.toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
@@ -626,7 +627,7 @@ useEffect(() => {
           body: JSON.stringify({
             txHash: checkInTxHash,
             wallet: address,
-            checkInAt: checkInDate.toISOString(),
+            checkInAt: checkInDate.toISOString(), // send raw timestamp to backend
           }),
         });
 
@@ -636,6 +637,7 @@ useEffect(() => {
             description: `You checked in on ${formattedDate} at ${formattedTime}`,
           });
 
+          // update local state to show in UI
           setUser(prev => prev ? { ...prev, checkedIn: true } : prev);
           setUserProgress(prev => ({
             ...prev,
@@ -643,6 +645,7 @@ useEffect(() => {
             voting: { ...prev.voting, status: "pending" },
           }));
 
+          // store nicely formatted timestamp in state
           setCheckInTime({ date: formattedDate, time: formattedTime });
         } else {
           toast({
@@ -661,6 +664,7 @@ useEffect(() => {
     saveCheckInToDB();
   }
 }, [isCheckInConfirmed, checkInTxHash, token, address]);
+
 
 // ----------------------- CHECK-OUT -----------------------
 const { writeContract: writeCheckOut, data: checkOutTxHash, isPending: isCheckOutPending } = useWriteContract();
@@ -699,7 +703,7 @@ const handleCheckOut = async () => {
   }
 };
 
-// When tx is confirmed → only set timing (no DB)
+// When tx is confirmed → just update local state & toast with timing
 useEffect(() => {
   if (isCheckOutConfirmed && checkOutTxHash) {
     const checkOutDate = new Date();
@@ -720,18 +724,18 @@ useEffect(() => {
       description: `You checked out on ${formattedDate} at ${formattedTime}`,
     });
 
+    // Update local state
     setUserProgress(prev => ({
       ...prev,
       checkout: { completed: true, status: "completed" },
     }));
 
+    // Save formatted checkout time in state
     setCheckOutTime({ date: formattedDate, time: formattedTime });
-    setStatus("out");
+
     setIsCheckingOut(false);
   }
-}, [isCheckOutConfirmed, checkOutTxHash, address, toast]);
-
-
+}, [isCheckOutConfirmed, checkOutTxHash]);
 
   // Update user cake when blockchain data changes
   useEffect(() => {
