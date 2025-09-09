@@ -1257,67 +1257,64 @@ useEffect(() => {
 
         {/* Steps Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-         {steps.map((step, index) => (
-  <Card
-    key={step.id}
-    className={`border-0 shadow-soft hover:shadow-cake transition-smooth ${step.status === "locked" ? "opacity-60" : ""}`}
-  >
-    <CardContent className="p-6">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className={`p-3 rounded-full ${step.status === "completed" ? "bg-green-100" : step.status === "pending" ? "bg-yellow-100" : "bg-muted"}`}>
-            {step.icon}
-          </div>
-          <div>
-            <h3 className="text-xl font-semibold text-foreground">{step.title}</h3>
-            <div className="flex items-center space-x-2 mt-1">{getStatusIcon(step.status)}{getStatusBadge(step.status)}</div>
-          </div>
+          {steps.map((step, index) => (
+            <Card key={step.id} className={`border-0 shadow-soft hover:shadow-cake transition-smooth ${step.status === "locked" ? "opacity-60" : ""}`}>
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-3 rounded-full ${step.status === "completed" ? "bg-green-100" : step.status === "pending" ? "bg-yellow-100" : "bg-muted"}`}>
+                      {step.icon}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold text-foreground">{step.title}</h3>
+                      <div className="flex items-center space-x-2 mt-1">{getStatusIcon(step.status)}{getStatusBadge(step.status)}</div>
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-muted-foreground">{index + 1}</div>
+                </div>
+                <p className="text-muted-foreground mb-6">{step.description}</p>
+                <Button
+                  variant={step.status === "pending" ? "cake" : "soft"}
+                  className={`w-full ${step.status === "completed" ? "bg-green-100 text-green-700 hover:bg-green-100 hover:text-green-700" : ""}`}
+                  disabled={step.status === "locked"}
+                  onClick={() => {
+                    if (step.status !== 'pending') return;
+                    if (step.id === 'checkin') {
+                      handleCheckIn();
+                    } else if (step.id === 'checkout') {
+                      handleCheckOut();
+                    }
+                  }}
+                  asChild={step.status === "pending" && (step.id === 'cakeUpload' || step.id === 'voting')}
+                >
+                  {step.status === "completed" ? (
+                    step.id === "registration" ? (
+                      <span>🍰 Registered & Paid Successfully 🎉</span>
+                    ) : step.id === "cakeUpload" ? (
+                      <span>🍰 Cake Uploaded Successfully 🎉</span>
+                    ) : step.id === "checkin" ? (
+                      <span>✅ Checked In Successfully 🎉</span>
+                    ) : step.id === "voting" ? (
+                      <span>🗳️ Voting Completed 🎉</span>
+                    ) : step.id === 'checkout' ? (
+                      <span>👋 Checked Out 🎉</span>
+                    ) : (
+                      <span>Completed</span>
+                    )
+                  ) : step.status === "pending" ? (
+                    step.id === 'cakeUpload' || step.id === 'voting' ? (
+                      <Link to={step.link}>Start Now</Link>
+                    ) : (
+                      <span>{step.id === 'checkin' ? (isCheckingIn ? 'Checking in...' : 'Start') : step.id === 'checkout' ? (isCheckingOut ? 'Checking out...' : 'Start') : 'Start'}</span>
+                    )
+                  ) : (
+                    <span>Complete Previous Step</span>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-        <div className="text-2xl font-bold text-muted-foreground">{index + 1}</div>
-      </div>
-      <p className="text-muted-foreground mb-6">{step.description}</p>
-
-      {/* Step Action Button */}
-      <Button
-        variant={step.status === "pending" ? "cake" : "soft"}
-        className={`w-full ${step.status === "completed" ? "bg-green-100 text-green-700 hover:bg-green-100 hover:text-green-700" : ""}`}
-        disabled={step.status === "locked"}
-        onClick={() => {
-          if (step.status !== 'pending') return;
-          if (step.id === 'checkin') {
-            handleCheckIn();
-          } else if (step.id === 'checkout') {
-            handleCheckOut();
-          }
-        }}
-        asChild={step.status === "pending" && (step.id === 'cakeUpload' || step.id === 'voting')}
-      >
-        {step.status === "completed" ? (
-          step.id === "checkin" ? (
-            <span>✅ Checked In Successfully 🎉</span>
-          ) : step.id === 'checkout' ? (
-            <span>👋 Checked Out 🎉</span>
-          ) : (
-            <span>Completed</span>
-          )
-        ) : (
-          step.id === 'checkin' ? (isCheckingIn ? 'Checking in...' : 'Start') : 'Start'
-        )}
-      </Button>
-
-      {/* --- COUNTDOWN BELOW BUTTON --- */}
-      {step.id === 'checkin' && userProgress.checkin?.completed && (
-        <div className="mt-2 text-sm text-muted-foreground text-center">
-          ⏳ Time Left:{" "}
-          <span className={`font-medium ${timeLeft?.includes("Expired") ? "text-red-600" : "text-green-600"}`}>
-            {timeLeft || "Calculating..."}
-          </span>
-        </div>
-      )}
-    </CardContent>
-  </Card>
-))}
- </div>
 
         {/* Help Section */}
         <div className="mt-16 text-center">
