@@ -16,15 +16,11 @@ const Checkin = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [blockchainLoading, setBlockchainLoading] = useState(true);
-  const [votingStatus, setVotingStatus] = useState({
-    beautiful: false,
-    delicious: false,
-    both: false
-  });
+  const [votingStatus, setVotingStatus] = useState({ beautiful: false, delicious: false, both: false });
 
-  // Permanent times
   const [checkInTime, setCheckInTime] = useState<{ date: string; time: string } | null>(null);
   const [checkOutTime, setCheckOutTime] = useState<{ date: string; time: string } | null>(null);
+  const [timeLeft, setTimeLeft] = useState<string | null>(null); // Countdown
 
   const { writeContract: writeCheckIn, data: checkInTxHash } = useWriteContract();
   const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({ hash: checkInTxHash, chainId: holesky.id });
@@ -49,6 +45,7 @@ const Checkin = () => {
     query: { enabled: !!address },
   });
 
+  // Fetch current status
   useEffect(() => {
     const fetchStatus = async () => {
       try {
@@ -70,36 +67,18 @@ const Checkin = () => {
 
           if (data.checkInAt) {
             const checkInDate = new Date(data.checkInAt);
-
-            const formattedDate = checkInDate.toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
+            setCheckInTime({
+              date: checkInDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+              time: checkInDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
             });
-
-            const formattedTime = checkInDate.toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            });
-
-            setCheckInTime({ date: formattedDate, time: formattedTime });
           }
 
           if (data.checkOutAt) {
             const checkOutDate = new Date(data.checkOutAt);
-
-            const formattedDate = checkOutDate.toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
+            setCheckOutTime({
+              date: checkOutDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+              time: checkOutDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
             });
-
-            const formattedTime = checkOutDate.toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            });
-
-            setCheckOutTime({ date: formattedDate, time: formattedTime });
           }
         }
       } catch (err) {
@@ -143,6 +122,7 @@ const Checkin = () => {
     });
   };
 
+  // Save check-in to DB and set check-in time
   useEffect(() => {
     if (isCheckInConfirmed && checkInTxHash) {
       const saveToDB = async () => {
@@ -154,15 +134,11 @@ const Checkin = () => {
               "Content-Type": "application/json",
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
-            body: JSON.stringify({
-              txHash: checkInTxHash,
-              wallet: address,
-            }),
+            body: JSON.stringify({ txHash: checkInTxHash, wallet: address }),
           });
           if (!res.ok) throw new Error("DB update failed");
           setStatus("in");
 
-          // Save check-in time locally
           const now = new Date();
           setCheckInTime({
             date: now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
@@ -176,11 +152,11 @@ const Checkin = () => {
     }
   }, [isCheckInConfirmed, checkInTxHash, address]);
 
+  // Save check-out to local state
   useEffect(() => {
     if (isCheckOutConfirmed && checkOutTxHash) {
       setStatus("out");
 
-      // Save check-out time locally
       const now = new Date();
       setCheckOutTime({
         date: now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
@@ -190,19 +166,41 @@ const Checkin = () => {
   }, [isCheckOutConfirmed, checkOutTxHash]);
 
   useEffect(() => {
-    if (address) {
-      setBlockchainLoading(isLoadingBeautiful || isLoadingDelicious);
-    } else {
-      setBlockchainLoading(false);
-    }
+    if (address) setBlockchainLoading(isLoadingBeautiful || isLoadingDelicious);
+    else setBlockchainLoading(false);
   }, [address, isLoadingBeautiful, isLoadingDelicious]);
+
+  // --- COUNTDOWN LOGIC ---
+  useEffect(() => {
+    if (status === 'in' && checkInTime) {
+      const eventDurationMs = 3 * 60 * 60 * 1000; // 3 hours
+      const checkInDate = new Date(`${checkInTime.date} ${checkInTime.time}`);
+      const targetTime = checkInDate.getTime() + eventDurationMs;
+
+      const interval = setInterval(() => {
+        const now = new Date().getTime();
+        const diff = targetTime - now;
+
+        if (diff <= 0) {
+          setTimeLeft("Expired");
+          clearInterval(interval);
+        } else {
+          const hours = Math.floor(diff / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          setTimeLeft(`${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`);
+        }
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [status, checkInTime]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-background">
       <Card className="max-w-md w-full border-0 shadow-cake">
         <CardHeader>
           <CardTitle className="text-center text-xl">Event Check-in</CardTitle>
-
           {blockchainLoading && address && (
             <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-center justify-center gap-2 text-blue-700">
@@ -212,6 +210,7 @@ const Checkin = () => {
             </div>
           )}
         </CardHeader>
+
         <CardContent>
           <div className="text-center mb-6">
             {loading ? (
@@ -219,7 +218,6 @@ const Checkin = () => {
             ) : (
               <>
                 {status === 'none' && <div className="text-muted-foreground">You have not checked in yet.</div>}
-
                 {status === 'in' && checkInTime && (
                   <div className="text-green-600 font-semibold text-center">
                     ✅ You checked in on
@@ -227,16 +225,11 @@ const Checkin = () => {
                     <div className="text-gray-700">{checkInTime.time}</div>
                   </div>
                 )}
-
-                {status === 'out' && (
+                {status === 'out' && checkOutTime && (
                   <div className="text-blue-600 font-semibold text-center">
                     👋 You have checked out.
-                    {checkOutTime && (
-                      <>
-                        <div className="text-gray-700">{checkOutTime.date}</div>
-                        <div className="text-gray-700">{checkOutTime.time}</div>
-                      </>
-                    )}
+                    <div className="text-gray-700">{checkOutTime.date}</div>
+                    <div className="text-gray-700">{checkOutTime.time}</div>
                   </div>
                 )}
               </>
@@ -252,16 +245,12 @@ const Checkin = () => {
                 <div className={`flex items-center gap-2 ${votingStatus.beautiful ? 'text-green-600' : 'text-orange-600'}`}>
                   {votingStatus.beautiful ? '✅' : '⏳'} Most Beautiful Cake
                   {votingStatus.beautiful ? ' - Voted ✓' : ' - Not voted yet'}
-                  {hasVotedBeautifulBlockchain && (
-                    <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">Blockchain ✓</span>
-                  )}
+                  {hasVotedBeautifulBlockchain && <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">Blockchain ✓</span>}
                 </div>
                 <div className={`flex items-center gap-2 ${votingStatus.delicious ? 'text-green-600' : 'text-orange-600'}`}>
                   {votingStatus.delicious ? '✅' : '⏳'} Most Delicious Cake
                   {votingStatus.delicious ? ' - Voted ✓' : ' - Not voted yet'}
-                  {hasVotedDeliciousBlockchain && (
-                    <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">Blockchain ✓</span>
-                  )}
+                  {hasVotedDeliciousBlockchain && <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">Blockchain ✓</span>}
                 </div>
                 {!votingStatus.both && (
                   <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">
@@ -281,7 +270,7 @@ const Checkin = () => {
           )}
 
           {/* Action Buttons */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
             <Button
               variant="cake"
               className="w-full"
@@ -290,6 +279,12 @@ const Checkin = () => {
             >
               {status === 'in' ? '✅ Already Checked In' : status === 'out' ? '✅ Event Complete' : '🚪 Check In'}
             </Button>
+
+            {status === 'in' && timeLeft && (
+              <div className="text-center text-sm text-muted-foreground">
+                ⏳ Time Left: <span className={`font-medium ${timeLeft === "Expired" ? "text-red-600" : "text-green-600"}`}>{timeLeft}</span>
+              </div>
+            )}
 
             {status === 'in' && !votingStatus.both && (
               <Button variant="outline" className="w-full" asChild>
