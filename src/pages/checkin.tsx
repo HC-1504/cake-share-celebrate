@@ -22,7 +22,9 @@ const Checkin = () => {
     both: false
   });
 
+  // Permanent times
   const [checkInTime, setCheckInTime] = useState<{ date: string; time: string } | null>(null);
+  const [checkOutTime, setCheckOutTime] = useState<{ date: string; time: string } | null>(null);
 
   const { writeContract: writeCheckIn, data: checkInTxHash } = useWriteContract();
   const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({ hash: checkInTxHash, chainId: holesky.id });
@@ -81,6 +83,23 @@ const Checkin = () => {
             });
 
             setCheckInTime({ date: formattedDate, time: formattedTime });
+          }
+
+          if (data.checkOutAt) {
+            const checkOutDate = new Date(data.checkOutAt);
+
+            const formattedDate = checkOutDate.toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            });
+
+            const formattedTime = checkOutDate.toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+
+            setCheckOutTime({ date: formattedDate, time: formattedTime });
           }
         }
       } catch (err) {
@@ -142,6 +161,13 @@ const Checkin = () => {
           });
           if (!res.ok) throw new Error("DB update failed");
           setStatus("in");
+
+          // Save check-in time locally
+          const now = new Date();
+          setCheckInTime({
+            date: now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+            time: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+          });
         } catch (err: any) {
           setError(err.message || "Failed to update DB after check-in");
         }
@@ -153,6 +179,13 @@ const Checkin = () => {
   useEffect(() => {
     if (isCheckOutConfirmed && checkOutTxHash) {
       setStatus("out");
+
+      // Save check-out time locally
+      const now = new Date();
+      setCheckOutTime({
+        date: now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+        time: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+      });
     }
   }, [isCheckOutConfirmed, checkOutTxHash]);
 
@@ -186,6 +219,7 @@ const Checkin = () => {
             ) : (
               <>
                 {status === 'none' && <div className="text-muted-foreground">You have not checked in yet.</div>}
+
                 {status === 'in' && checkInTime && (
                   <div className="text-green-600 font-semibold text-center">
                     ✅ You checked in on
@@ -193,7 +227,18 @@ const Checkin = () => {
                     <div className="text-gray-700">{checkInTime.time}</div>
                   </div>
                 )}
-                {status === 'out' && <div className="text-blue-600 font-semibold">👋 You have checked out.</div>}
+
+                {status === 'out' && (
+                  <div className="text-blue-600 font-semibold text-center">
+                    👋 You have checked out.
+                    {checkOutTime && (
+                      <>
+                        <div className="text-gray-700">{checkOutTime.date}</div>
+                        <div className="text-gray-700">{checkOutTime.time}</div>
+                      </>
+                    )}
+                  </div>
+                )}
               </>
             )}
             {error && <div className="text-red-600 font-semibold mt-2">{error}</div>}
@@ -268,6 +313,3 @@ const Checkin = () => {
 };
 
 export default Checkin;
-
-
-
