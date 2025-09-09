@@ -562,6 +562,10 @@ const Dashboard = () => {
     fetchRegistrationEvent();
   }, [address, publicClient]);
 
+// ----------------------- STATES -----------------------
+const [checkInTime, setCheckInTime] = useState<{ date: string; time: string } | null>(null);
+const [checkOutTime, setCheckOutTime] = useState<{ date: string; time: string } | null>(null);
+
 // ----------------------- CHECK-IN -----------------------
 const { writeContract: writeCheckIn, data: checkInTxHash, isPending: isCheckInPending } = useWriteContract();
 const { isSuccess: isCheckInConfirmed } = useWaitForTransactionReceipt({
@@ -575,7 +579,7 @@ const handleCheckIn = async () => {
   try {
     setIsCheckingIn(true);
 
-    // 1. Call smart contract checkIn()
+    // Call smart contract checkIn()
     writeCheckIn({
       address: checkInOutAddress[holesky.id],
       abi: checkInOutABI,
@@ -603,9 +607,8 @@ const handleCheckIn = async () => {
 useEffect(() => {
   if (isCheckInConfirmed && checkInTxHash) {
     const saveCheckInToDB = async () => {
-      const checkInDate = new Date(); // Capture current timestamp
+      const checkInDate = new Date();
 
-      // Format date & time separately
       const formattedDate = checkInDate.toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
@@ -627,17 +630,16 @@ useEffect(() => {
           body: JSON.stringify({
             txHash: checkInTxHash,
             wallet: address,
-            checkInAt: checkInDate.toISOString(), // send raw timestamp to backend
+            checkInAt: checkInDate.toISOString(),
           }),
         });
 
         if (res.ok) {
           toast({
             title: "Checked in 🎉",
-            description: `You checked in on ${formattedDate} at ${formattedTime}`, // nice message
+            description: `You checked in on ${formattedDate} at ${formattedTime}`,
           });
 
-          // update local state to show in UI
           setUser(prev => prev ? { ...prev, checkedIn: true } : prev);
           setUserProgress(prev => ({
             ...prev,
@@ -645,14 +647,8 @@ useEffect(() => {
             voting: { ...prev.voting, status: "pending" },
           }));
 
-          // store nicely formatted timestamp in state
+          // ✅ Save check-in time permanently
           setCheckInTime({ date: formattedDate, time: formattedTime });
-        } else {
-          toast({
-            title: "DB update failed",
-            description: "Blockchain confirmed, but DB did not update",
-            variant: "destructive",
-          });
         }
       } catch (e) {
         console.error("DB error:", e);
@@ -679,7 +675,7 @@ const handleCheckOut = async () => {
   try {
     setIsCheckingOut(true);
 
-    // 1. Call smart contract checkOut()
+    // Call smart contract checkOut()
     writeCheckOut({
       address: checkInOutAddress[holesky.id],
       abi: checkInOutABI,
@@ -703,23 +699,39 @@ const handleCheckOut = async () => {
   }
 };
 
-// When tx is confirmed → just update local state & toast
+// When tx is confirmed → save check-out time too
 useEffect(() => {
   if (isCheckOutConfirmed && checkOutTxHash) {
-    toast({
-      title: "Checked out 👋",
-      description: "See you again!",
+    const checkOutDate = new Date();
+
+    const formattedDate = checkOutDate.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
 
-    // Example: mark checkout complete in local state
+    const formattedTime = checkOutDate.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    toast({
+      title: "Checked out 👋",
+      description: `You checked out on ${formattedDate} at ${formattedTime}`,
+    });
+
     setUserProgress(prev => ({
       ...prev,
       checkout: { completed: true, status: "completed" },
     }));
 
+    // ✅ Save check-out time permanently
+    setCheckOutTime({ date: formattedDate, time: formattedTime });
+
     setIsCheckingOut(false);
   }
 }, [isCheckOutConfirmed, checkOutTxHash]);
+
 
   // Update user cake when blockchain data changes
   useEffect(() => {
